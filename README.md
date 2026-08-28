@@ -6,6 +6,8 @@ GPL-3.0-or-later - see LICENSE
 
 # HYDRA-UMC-BRIDGE-PRINTER3D
 
+🇺🇸 **English** | 🇪🇸 [Español](README_spa.md) | 🇫🇷 [Français](README_fra.md) | 🇮🇹 [Italiano](README_ita.md) | 🇩🇪 [Deutsch](README_deu.md) | 🇨🇳 [简体中文](README_zho.md) | 🇯🇵 [日本語](README_jpn.md)
+
 High-level coordinator for open 3D-printing software and HYDRA-UMC robotic
 auxiliaries. Native printer firmware remains responsible for motion, heaters,
 thermal protection and machine interlocks.
