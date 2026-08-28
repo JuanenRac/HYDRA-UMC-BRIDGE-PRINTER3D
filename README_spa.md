@@ -40,3 +40,10 @@ Los comandos reales requieren perfil probado, autenticación y revisión de segu
 
 La versión `0.0.1` incluye adaptador Moonraker local y probado. No ha controlado
 una impresora real, hotend ni robot.
+
+## ⚙️ Compilación con versión
+
+`build-test.bat` / `build-test.sh` validan sin modificar el repositorio.
+`build.bat` / `build.sh` ejecutan primero esa validación y, solo si es
+correcta, sincronizan la versión nativa, el manifiesto y `CHANGELOG.md`. No
+existe un comando `run` de impresora hasta validar una integración real.

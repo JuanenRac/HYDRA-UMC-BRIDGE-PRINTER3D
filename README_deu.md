@@ -44,3 +44,10 @@ physische Sicherheitsprüfung.
 Version `0.0.1` enthält einen lokalen, getesteten Moonraker-
 Bereitschaftsadapter. Sie hat keinen realen Drucker, kein Hotend und keinen
 Roboter gesteuert.
+
+## ⚙️ Versionierter Build
+
+`build-test.bat` / `build-test.sh` validieren ohne das Repository zu ändern.
+`build.bat` / `build.sh` führen zuerst diese Validierung aus und
+synchronisieren nur bei Erfolg native Version, Manifest und `CHANGELOG.md`.
+Vor einer realen Druckerintegration gibt es keinen Drucker-`run`-Befehl.

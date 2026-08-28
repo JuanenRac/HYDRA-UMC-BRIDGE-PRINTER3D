@@ -41,3 +41,10 @@ authentication and physical safety review.
 
 Version `0.0.1` includes a local, tested Moonraker readiness adapter. It has
 not controlled a real printer, hotend or robot.
+
+## ⚙️ Versioned Build
+
+`build-test.bat` / `build-test.sh` validate without modifying the repository.
+`build.bat` / `build.sh` run that validation first and, only on success,
+synchronize the native package version, manifest and `CHANGELOG.md`. There is
+no live printer `run` command until a real integration is validated.

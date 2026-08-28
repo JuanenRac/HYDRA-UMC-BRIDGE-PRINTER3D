@@ -38,3 +38,10 @@ richiedono profilo testato, autenticazione e revisione di sicurezza.
 
 La versione `0.0.1` include adattatore Moonraker locale testato. Non ha controllato
 stampante reale, hotend o robot.
+
+## ⚙️ Build con versione
+
+`build-test.bat` / `build-test.sh` convalidano senza modificare il repository.
+`build.bat` / `build.sh` eseguono prima tale convalida e, solo se riesce,
+sincronizzano versione nativa, manifesto e `CHANGELOG.md`. Non esiste un
+comando `run` della stampante prima di una convalida reale.
