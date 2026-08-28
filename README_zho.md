@@ -39,3 +39,9 @@ Windows 运行 `build-test.bat`，Linux 运行 `bash build-test.sh`。脚本会�
 
 版本 `0.0.1` 包含本地、已测试的 Moonraker 就绪状态适配器。它尚未控制真实的
 打印机、热端或机器人。
+
+## ⚙️ 版本化构建
+
+`build-test.bat` / `build-test.sh` 只验证，不修改仓库。`build.bat` /
+`build.sh` 先运行该验证，只有成功后才同步原生包版本、清单和 `CHANGELOG.md`。
+在真实打印机集成验证前，不提供打印机 `run` 命令。
