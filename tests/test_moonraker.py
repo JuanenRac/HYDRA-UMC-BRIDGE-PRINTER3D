@@ -24,6 +24,13 @@ class MoonrakerTests(unittest.TestCase):
         job = BridgeJob("print-1", "print-key-1", "moonraker", JobPhase.ABORT, MachineState.IDLE, {})
         self.assertTrue(PrinterBridge().plan(job, CellState.FAULT, status).allowed)
 
+    def test_unreachable_moonraker_fails_safe_instead_of_crashing(self):
+        # A real connection attempt (no mocking) against a port nothing is
+        # listening on - reproduces the exact failure fetch() must survive:
+        # Moonraker down, wrong URL, or the CM5 not booted yet.
+        status = MoonrakerProbe().fetch("http://127.0.0.1:1", timeout_seconds=0.5)
+        self.assertEqual(status.state, MachineState.OFFLINE)
+
 
 if __name__ == "__main__":
     unittest.main()
