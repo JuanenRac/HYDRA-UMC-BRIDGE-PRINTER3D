@@ -6,6 +6,16 @@ GPL-3.0-or-later - see LICENSE
 
 # Changelog
 
+## [0.0.2] - 2026-08-29
+
+- Added a deterministic local HTTP integration test for Moonraker's read-only
+  `GET /printer/info` readiness endpoint; it verifies the endpoint path and
+  the `ready` state mapping without contacting a printer.
+- Rejected non-HTTP(S) controller URLs before any request is opened, keeping a
+  malformed or accidental local-file endpoint fail-safe as `OFFLINE`.
+- Successful incremental build: synchronized package metadata and
+  `hydra-umc.project.json`.
+
 ## [0.0.1]
 
 - Added Moonraker readiness parser, SDK safety gate and local tests.
