@@ -6,6 +6,13 @@ GPL-3.0-or-later - see LICENSE
 
 # Changelog
 
+## [0.0.4] - 2026-08-29
+
+- Synchronized the English README and all six translated README files with the
+  released readiness-probe scope, current version and seven-test coverage.
+- Successful incremental build: synchronized package metadata and
+  `hydra-umc.project.json`.
+
 ## [0.0.3] - 2026-08-29
 
 - Normalized surrounding whitespace in a configured Moonraker base URL before
