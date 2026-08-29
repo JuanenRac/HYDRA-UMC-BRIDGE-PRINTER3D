@@ -47,8 +47,15 @@ class MoonrakerProbe:
         # mode here already gets. A printer that can't be reached is not
         # meaningfully different from one reporting an unknown state - both
         # mean "don't trust this printer as ready", not "crash the caller".
+        if not isinstance(base_url, str):
+            return PrinterStatus(
+                MachineState.OFFLINE,
+                "Moonraker endpoint must be an absolute http(s) URL",
+            )
+
+        normalized_base_url = base_url.strip()
         try:
-            parsed = urlparse(base_url.strip())
+            parsed = urlparse(normalized_base_url)
         except ValueError as error:
             return PrinterStatus(MachineState.OFFLINE, f"Moonraker endpoint is invalid: {error}")
 
@@ -59,7 +66,7 @@ class MoonrakerProbe:
             )
 
         try:
-            endpoint = f"{base_url.rstrip('/')}/printer/info"
+            endpoint = f"{normalized_base_url.rstrip('/')}/printer/info"
             with urlopen(endpoint, timeout=timeout_seconds) as response:  # nosec B310: configured controller endpoint, restricted to HTTP(S) above
                 return self.parse_info(json.load(response))
         except (URLError, TimeoutError, OSError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as error:
