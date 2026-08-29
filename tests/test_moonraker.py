@@ -66,12 +66,17 @@ class MoonrakerTests(unittest.TestCase):
 
     def test_http_probe_uses_documented_printer_info_endpoint(self):
         port = self.server.server_port
-        status = MoonrakerProbe().fetch(f"http://127.0.0.1:{port}")
+        status = MoonrakerProbe().fetch(f"  http://127.0.0.1:{port}/  ")
         self.assertEqual(status.state, MachineState.IDLE)
         self.assertEqual(MoonrakerFixtureHandler.request_path, "/printer/info")
 
     def test_non_http_endpoint_is_rejected_without_a_request(self):
         status = MoonrakerProbe().fetch("file:///printer.cfg")
+        self.assertEqual(status.state, MachineState.OFFLINE)
+        self.assertIn("http(s)", status.message)
+
+    def test_non_string_endpoint_is_rejected_without_crashing(self):
+        status = MoonrakerProbe().fetch(None)  # type: ignore[arg-type]
         self.assertEqual(status.state, MachineState.OFFLINE)
         self.assertIn("http(s)", status.message)
 

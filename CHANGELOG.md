@@ -6,6 +6,15 @@ GPL-3.0-or-later - see LICENSE
 
 # Changelog
 
+## [0.0.3] - 2026-08-29
+
+- Normalized surrounding whitespace in a configured Moonraker base URL before
+  opening the documented readiness request.
+- Made a non-string endpoint value fail safe as `OFFLINE` instead of allowing
+  a configuration-type error to escape the probe.
+- Successful incremental build: synchronized package metadata and
+  `hydra-umc.project.json`.
+
 ## [0.0.2] - 2026-08-29
 
 - Added a deterministic local HTTP integration test for Moonraker's read-only
