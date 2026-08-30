@@ -6,7 +6,20 @@
 """Safe coordinator for printer software with read-only artifact inspection."""
 
 from .artifacts import PrintArtifact, PrintArtifactKind, PrintTechnology, inspect_artifact
-from .moonraker import MoonrakerProbe, PrinterBridge
+from .moonraker import JobCommandResult, MoonrakerJobControl, MoonrakerProbe, PrinterBridge, PrinterStatus
 from .profiles import ArtifactProfileAssessment, PrintProfile, assess_artifact_profile
 
-__all__ = ["MoonrakerProbe", "PrinterBridge", "PrintArtifact", "PrintArtifactKind", "PrintTechnology", "inspect_artifact", "PrintProfile", "ArtifactProfileAssessment", "assess_artifact_profile"]
+__all__ = [
+    "MoonrakerProbe",
+    "PrinterBridge",
+    "PrinterStatus",
+    "MoonrakerJobControl",
+    "JobCommandResult",
+    "PrintArtifact",
+    "PrintArtifactKind",
+    "PrintTechnology",
+    "inspect_artifact",
+    "PrintProfile",
+    "ArtifactProfileAssessment",
+    "assess_artifact_profile",
+]

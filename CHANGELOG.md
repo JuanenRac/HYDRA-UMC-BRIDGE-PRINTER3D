@@ -6,6 +6,29 @@ GPL-3.0-or-later - see LICENSE
 
 # Changelog
 
+## [0.0.9] - Real, SDK-gated job commands (pre-real: connected, not simulated)
+
+- **`moonraker.py`** - added `MoonrakerJobControl`, this bridge's first real
+  write capability: `start_job()`/`pause_job()`/`resume_job()`/`cancel_job()`
+  send real `POST` requests to Moonraker's own documented REST API
+  (`/printer/print/start|pause|resume|cancel`,
+  [moonraker.readthedocs.io/en/latest/external_api/printer](https://moonraker.readthedocs.io/en/latest/external_api/printer/)).
+  This is a deliberate, explicit expansion of this bridge's own boundary (see
+  the updated manifest `notes`) - but it never bypasses this ecosystem's
+  safety gate: `start_job()` routes through the exact same `evaluate_job()`
+  decision every productive dispatch in this ecosystem uses (`PrinterBridge.
+  plan()`) before a single byte reaches Moonraker; `pause_job()`/`cancel_job()`
+  are always allowed, matching the same de-escalation reasoning already
+  applied to `ABORT`/`HOLD_POSITION` elsewhere; `resume_job()` uses a
+  standalone gate requiring a genuinely `HOLDING` printer (not the generic
+  IDLE-based gate, which is backwards for resuming a paused job - same
+  reasoning already applied to DROIDS's `stand_request()`/`sit_request()`).
+  `start_job()` also rejects a path-traversal or empty filename before any
+  network call. This still never streams raw G-code, touches firmware, or
+  claims heater/motion authority - Moonraker/Klipper keep that, unchanged.
+- 9 new regression tests against the same real fixture HTTP server pattern,
+  now also serving real `POST` responses - 35/35 tests passing.
+
 ## [0.0.8] - Real print_stats confirmation, not just klippy_state
 
 - Bound the read-only Moonraker readiness response to 64 KiB before JSON

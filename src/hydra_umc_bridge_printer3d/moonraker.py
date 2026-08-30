@@ -10,9 +10,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from typing import Callable
-from urllib.error import URLError
-from urllib.parse import urlparse
-from urllib.request import urlopen
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode, urlparse
+from urllib.request import Request, urlopen
 
 from hydra_umc_sdk.bridge_contract import BridgeJob, CellState, GateDecision, MachineState, evaluate_job
 
@@ -151,3 +151,123 @@ class PrinterBridge:
     def plan(self, job: BridgeJob, cell_state: CellState, printer: PrinterStatus) -> GateDecision:
         observed = BridgeJob(job.job_id, job.idempotency_key, job.source, job.phase, printer.state, job.parameters)
         return evaluate_job(observed, cell_state)
+
+
+@dataclass(frozen=True)
+class JobCommandResult:
+    """A real command outcome - distinct from a plan-only GateDecision.
+
+    `allowed=False` means the SDK gate rejected the command before any network
+    call was made. `allowed=True, executed=False` means the gate accepted it but
+    a local validation (e.g. an empty filename) still stopped it before the
+    network call. `executed` only ever becomes True after Moonraker's own REST
+    API returned success.
+    """
+
+    allowed: bool
+    executed: bool
+    reason: str
+    http_status: int | None = None
+
+
+class MoonrakerJobControl:
+    """Send fail-closed, SDK-gated real print-job commands to Moonraker.
+
+    This is a genuine change from the rest of this module (read-only readiness
+    only) - it can now make Moonraker actually start/pause/resume/cancel a job.
+    It still never bypasses this ecosystem's own safety boundary: every command
+    that starts new productive work is gated through the exact same
+    evaluate_job()-based decision every other bridge in this ecosystem uses
+    before a single byte reaches Moonraker (see PrinterBridge.plan() above), and
+    it only ever asks Moonraker's own already-safe REST API to start/pause/
+    resume/cancel an already-sliced, already-verified gcode file that is already
+    sitting on the printer's own filesystem - it never streams raw G-code and
+    never touches firmware, heaters or motion directly. Moonraker/Klipper keep
+    all real-time thermal and motion authority, exactly as this bridge's own
+    manifest has always said.
+    """
+
+    def start_job(
+        self,
+        job: BridgeJob,
+        cell_state: CellState,
+        printer: PrinterStatus,
+        base_url: str,
+        filename: str,
+        timeout_seconds: float = 5.0,
+    ) -> JobCommandResult:
+        # Starting a job is exactly a PROCESS-phase productive action - it needs
+        # the same READY cell + IDLE machine gate every other productive
+        # dispatch in this ecosystem needs, not a bespoke rule.
+        decision = PrinterBridge().plan(job, cell_state, printer)
+        if not decision.allowed:
+            return JobCommandResult(False, False, decision.reason)
+        if not isinstance(filename, str) or not filename.strip():
+            return JobCommandResult(True, False, "a non-empty gcode filename is required")
+        if ".." in filename or filename.startswith("/"):
+            return JobCommandResult(True, False, "filename must not escape Moonraker's gcodes root")
+        return self._post(base_url, "/printer/print/start", timeout_seconds, {"filename": filename})
+
+    def pause_job(self, base_url: str, timeout_seconds: float = 5.0) -> JobCommandResult:
+        # Always allowed, same de-escalation reasoning as ABORT/HOLD_POSITION
+        # elsewhere in this ecosystem - an operator must always be able to
+        # pause an active job; pausing only ever reduces risk.
+        return self._post(base_url, "/printer/print/pause", timeout_seconds, None)
+
+    def resume_job(
+        self,
+        cell_state: CellState,
+        printer: PrinterStatus,
+        base_url: str,
+        timeout_seconds: float = 5.0,
+    ) -> JobCommandResult:
+        # Resume deliberately does NOT reuse evaluate_job() (built around
+        # "productive work needs an IDLE machine") - that precondition is
+        # backwards for this specific action: resume only makes sense from a
+        # genuinely paused (HOLDING) printer, never an idle one. Same reasoning
+        # already applied this session to DROIDS's standalone stand_request()/
+        # sit_request() gates instead of forcing them through the generic
+        # phase-based gate.
+        if cell_state is not CellState.READY:
+            return JobCommandResult(False, False, f"cell is {cell_state.value}, not READY")
+        if printer.state is not MachineState.HOLDING:
+            return JobCommandResult(
+                False, False, f"printer is {printer.state.value}, not HOLDING (nothing to resume)"
+            )
+        return self._post(base_url, "/printer/print/resume", timeout_seconds, None)
+
+    def cancel_job(self, base_url: str, timeout_seconds: float = 5.0) -> JobCommandResult:
+        # Always allowed, same reasoning as ABORT everywhere else in this
+        # ecosystem - a controlled stop must never be gated on machine state.
+        return self._post(base_url, "/printer/print/cancel", timeout_seconds, None)
+
+    @staticmethod
+    def _post(
+        base_url: str,
+        path: str,
+        timeout_seconds: float,
+        params: dict[str, str] | None,
+    ) -> JobCommandResult:
+        if not isinstance(base_url, str):
+            return JobCommandResult(True, False, "Moonraker endpoint must be an absolute http(s) URL")
+        normalized_base_url = base_url.strip()
+        try:
+            parsed = urlparse(normalized_base_url)
+        except ValueError as error:
+            return JobCommandResult(True, False, f"Moonraker endpoint is invalid: {error}")
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            return JobCommandResult(True, False, "Moonraker endpoint must be an absolute http(s) URL")
+
+        endpoint = f"{normalized_base_url.rstrip('/')}{path}"
+        if params:
+            endpoint = f"{endpoint}?{urlencode(params)}"
+        request = Request(endpoint, method="POST", data=b"")  # nosec B310: configured controller endpoint, restricted to HTTP(S) above
+        try:
+            with urlopen(request, timeout=timeout_seconds) as response:  # nosec B310
+                response.read(_MAX_INFO_BYTES + 1)
+                return JobCommandResult(True, True, "Moonraker accepted the command", response.status)
+        except HTTPError as error:
+            error.close()
+            return JobCommandResult(True, False, f"Moonraker rejected the command: HTTP {error.code}", error.code)
+        except (URLError, TimeoutError, OSError, ValueError) as error:
+            return JobCommandResult(True, False, f"Moonraker unreachable: {error}")

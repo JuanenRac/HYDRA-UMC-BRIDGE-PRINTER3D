@@ -9,7 +9,7 @@ import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from hydra_umc_sdk.bridge_contract import BridgeJob, CellState, JobPhase, MachineState
-from hydra_umc_bridge_printer3d import MoonrakerProbe, PrinterBridge
+from hydra_umc_bridge_printer3d import MoonrakerJobControl, MoonrakerProbe, PrinterBridge, PrinterStatus
 
 
 class MoonrakerFixtureHandler(BaseHTTPRequestHandler):
@@ -25,6 +25,7 @@ class MoonrakerFixtureHandler(BaseHTTPRequestHandler):
     requested_paths: list[str] = []
     info_response_override: bytes | None = None
     print_stats_response_override: bytes | None = None
+    post_status_code: int = 200
 
     def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler requires this name.
         type(self).requested_paths.append(self.path)
@@ -37,6 +38,15 @@ class MoonrakerFixtureHandler(BaseHTTPRequestHandler):
                 {"state": "ready", "state_message": "Printer is ready"}
             ).encode("utf-8")
         self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def do_POST(self):  # noqa: N802 - BaseHTTPRequestHandler requires this name.
+        type(self).requested_paths.append(self.path)
+        payload = b'"ok"'
+        self.send_response(type(self).post_status_code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
@@ -63,6 +73,7 @@ class MoonrakerTests(unittest.TestCase):
         MoonrakerFixtureHandler.requested_paths = []
         MoonrakerFixtureHandler.info_response_override = None
         MoonrakerFixtureHandler.print_stats_response_override = None
+        MoonrakerFixtureHandler.post_status_code = 200
 
     def test_ready_response_maps_to_idle(self):
         status = MoonrakerProbe.parse_info({"result": {"state": "ready", "state_message": "ready"}})
@@ -164,6 +175,102 @@ class MoonrakerTests(unittest.TestCase):
         status = MoonrakerProbe().fetch(f"http://127.0.0.1:{self.server.server_port}")
         self.assertEqual(status.state, MachineState.OFFLINE)
         self.assertIn("64 KiB", status.message)
+
+
+class MoonrakerJobControlTests(unittest.TestCase):
+    """Real POST-based job commands against the same fixture server pattern."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), MoonrakerFixtureHandler)
+        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
+        cls.thread.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.thread.join()
+        cls.server.server_close()
+
+    def setUp(self):
+        MoonrakerFixtureHandler.requested_paths = []
+        MoonrakerFixtureHandler.post_status_code = 200
+        self.base_url = f"http://127.0.0.1:{self.server.server_port}"
+
+    def job(self, phase=JobPhase.PROCESS):
+        return BridgeJob("print-1", "print-key-1", "moonraker", phase, MachineState.IDLE, {})
+
+    def test_start_job_is_gated_by_the_same_sdk_decision_as_every_other_bridge(self):
+        idle = PrinterStatus(MachineState.IDLE, "printer ready")
+        result = MoonrakerJobControl().start_job(self.job(), CellState.READY, idle, self.base_url, "part.gcode")
+        self.assertTrue(result.allowed)
+        self.assertTrue(result.executed)
+        self.assertIn("/printer/print/start?filename=part.gcode", MoonrakerFixtureHandler.requested_paths)
+
+    def test_start_job_is_rejected_while_a_print_is_already_running_without_any_network_call(self):
+        running = PrinterStatus(MachineState.RUNNING, "a print is actively in progress")
+        result = MoonrakerJobControl().start_job(self.job(), CellState.READY, running, self.base_url, "part.gcode")
+        self.assertFalse(result.allowed)
+        self.assertFalse(result.executed)
+        self.assertEqual(MoonrakerFixtureHandler.requested_paths, [])
+
+    def test_start_job_rejects_a_path_traversal_filename_before_any_network_call(self):
+        idle = PrinterStatus(MachineState.IDLE, "printer ready")
+        result = MoonrakerJobControl().start_job(self.job(), CellState.READY, idle, self.base_url, "../../etc/passwd")
+        self.assertTrue(result.allowed)
+        self.assertFalse(result.executed)
+        self.assertEqual(MoonrakerFixtureHandler.requested_paths, [])
+
+    def test_start_job_rejects_an_empty_filename_before_any_network_call(self):
+        idle = PrinterStatus(MachineState.IDLE, "printer ready")
+        result = MoonrakerJobControl().start_job(self.job(), CellState.READY, idle, self.base_url, "  ")
+        self.assertTrue(result.allowed)
+        self.assertFalse(result.executed)
+        self.assertEqual(MoonrakerFixtureHandler.requested_paths, [])
+
+    def test_pause_is_always_allowed_regardless_of_cell_or_printer_state(self):
+        result = MoonrakerJobControl().pause_job(self.base_url)
+        self.assertTrue(result.allowed)
+        self.assertTrue(result.executed)
+        self.assertIn("/printer/print/pause", MoonrakerFixtureHandler.requested_paths)
+
+    def test_cancel_is_always_allowed_regardless_of_cell_or_printer_state(self):
+        result = MoonrakerJobControl().cancel_job(self.base_url)
+        self.assertTrue(result.allowed)
+        self.assertTrue(result.executed)
+        self.assertIn("/printer/print/cancel", MoonrakerFixtureHandler.requested_paths)
+
+    def test_resume_requires_a_genuinely_holding_printer_not_idle(self):
+        # Resume deliberately does not reuse the generic evaluate_job() gate -
+        # see moonraker.py's own comment. An idle printer has nothing to resume.
+        idle = PrinterStatus(MachineState.IDLE, "printer ready")
+        rejected = MoonrakerJobControl().resume_job(CellState.READY, idle, self.base_url)
+        self.assertFalse(rejected.allowed)
+        self.assertEqual(MoonrakerFixtureHandler.requested_paths, [])
+
+        holding = PrinterStatus(MachineState.HOLDING, "the current print job is paused")
+        accepted = MoonrakerJobControl().resume_job(CellState.READY, holding, self.base_url)
+        self.assertTrue(accepted.allowed)
+        self.assertTrue(accepted.executed)
+        self.assertIn("/printer/print/resume", MoonrakerFixtureHandler.requested_paths)
+
+    def test_a_rejecting_moonraker_response_is_reported_not_silently_swallowed(self):
+        MoonrakerFixtureHandler.post_status_code = 400
+        result = MoonrakerJobControl().pause_job(self.base_url)
+        self.assertTrue(result.allowed)
+        self.assertFalse(result.executed)
+        self.assertEqual(result.http_status, 400)
+
+    def test_unreachable_moonraker_fails_closed_instead_of_crashing(self):
+        result = MoonrakerJobControl().cancel_job("http://127.0.0.1:1", timeout_seconds=0.5)
+        self.assertTrue(result.allowed)
+        self.assertFalse(result.executed)
+        self.assertIn("unreachable", result.reason)
+
+    def test_non_http_endpoint_is_rejected_without_a_request(self):
+        result = MoonrakerJobControl().cancel_job("file:///printer.cfg")
+        self.assertFalse(result.executed)
+        self.assertIn("http(s)", result.reason)
 
 
 if __name__ == "__main__":
