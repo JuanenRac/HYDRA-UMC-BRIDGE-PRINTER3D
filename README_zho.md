@@ -24,7 +24,7 @@ GPL-3.0-or-later - see LICENSE
 
 ## 1. 🛠️ 技术概览
 
-**HYDRA-UMC-BRIDGE-PRINTER3D** 是开源 3D 打印软件(Moonraker/Klipper)与 HYDRA-UMC 机器人辅助设备之间的高层协调器。打印机的原生固件始终负责运动、加热器、热保护和机器联锁——本桥接只读取就绪状态并围绕它协调辅助设备。
+**HYDRA-UMC-BRIDGE-PRINTER3D** 是开源 3D 打印软件(Moonraker/Klipper)与 HYDRA-UMC 机器人辅助设备之间的高层协调器。它还会以只读方式识别本地切片软件产物。打印机的原生固件始终负责运动、加热器、热保护和机器联锁——本桥接只读取就绪状态、记录产物证据并围绕它协调辅助设备。
 
 它属于 **External Automation Bridges** 家族:一组共享 `HYDRA-UMC-SDK` 相同安全契约的兄弟仓库(CNC、LASER、OPENPNP、PRINTER3D、ROS2),因此任何一个桥接都不能自行发明"可以安全工作"的定义。
 
@@ -32,6 +32,7 @@ GPL-3.0-or-later - see LICENSE
 * ✅ **真实的 Moonraker 就绪探测:** `moonraker.py` 中的 `MoonrakerProbe` 使用一个仅依赖标准库的小型客户端(`urlopen` + `json`)读取 Moonraker 文档化的 `/printer/info` 接口——除 Python 标准库外没有任何额外依赖。*(已实现,并在 `tests/test_moonraker.py` 中测试)*
 * ✅ **真实的故障安全状态解析:** `parse_info()` 只把字面字符串 `"ready"` 映射为 `MachineState.IDLE`;`startup`/`shutdown`/`error` 映射为 `FAULT`,其余情况(包括格式错误的响应)一律映射为 `OFFLINE`——绝不会映射到允许围绕打印机规划机器人动作的状态。*(已实现)*
 * ✅ **真实的共享安全门控:** 每个被观察到的任务都会通过 `HYDRA-UMC-SDK` 的 `bridge_contract` 中的 `evaluate_job()` 重新评估,这与所有兄弟桥接以及 HYDRA-UMC-SERVER 使用的是同一个门控。*(已实现)*
+* ✅ **独立于切片软件的产物检查:** `artifacts.py` 只通过本地证据识别 OrcaSlicer、Ultimaker Cura、PrusaSlicer、Bambu Studio 和其他切片软件生成的普通 FDM G-code；它也能识别 3MF 包和兼容 Lychee 的树脂切片，且不会解包、解析命令、上传或打印。*(已实现,并在 `tests/test_artifacts.py` 中测试)*
 * ✅ **非变更式构建/测试:** `build-test.bat`/`.sh` 编译响应解析器和安全门控,不发送 G-code、不改变版本、不触碰打印机。*(已实现,见下方"构建与运行")*
 * 🔜 **真正的打印机控制(G-code 命令)** —— 推迟到已有经过测试的配置文件、身份验证和物理安全评审之后。*(计划中)*
 
@@ -58,6 +59,12 @@ flowchart LR
 * **为什么真正的命令(G-code)需要先有经过测试的配置文件、身份验证和物理安全评审。** Moonraker 的 API 可以接受任意 G-code;在没有经过验证的配置文件和身份验证的情况下发送它,恰恰会绕过本桥接存在的意义——执行就绪检查。
 * **它如何融入整个生态系统。** BRIDGE-PRINTER3D 位于 Moonraker/Klipper 与 `HYDRA-UMC-SDK` → `HYDRA-UMC-SERVER` → 单元安全之间:它协调围绕打印机的辅助机器人工作,绝不会取代原生固件、加热器或热保护。
 
+## 🧾 切片软件产物兼容性
+
+只读产物通道支持 OrcaSlicer、Ultimaker Cura、PrusaSlicer、Bambu Studio 和其他切片软件生成的常规 FDM G-code(`.gcode`、`.gco`、`.gc`)。熟悉的注释会提供来源提示；没有标记时保持为 `unknown-slicer`。`.gcode.3mf` 和通用 `.3mf` 会被识别，但绝不会解包。来自兼容 Lychee 工作流的树脂切片(`.ctb`、`.goo`、`.photon`、`.pwmo`、`.pws`、`.sl1`)被有意作为不透明内容处理，绝不会归属到某台特定打印机或切片软件。
+
+这是与**输出产物**的兼容，而不是对这些应用的远程控制。桥接不会启动切片软件、修改配置文件、解析/执行 G-code、上传文件、联系云服务或启动打印。准确矩阵和未来控制前置条件见[切片软件产物兼容性](docs/SLICER_ARTIFACT_COMPATIBILITY.md)。
+
 ---
 
 ## 📂 目录结构
@@ -67,11 +74,14 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 ├── src/
 │   └── hydra_umc_bridge_printer3d/
 │       ├── __init__.py
+│       ├── artifacts.py         # 只读 G-code、3MF 和树脂切片证据
 │       └── moonraker.py         # MoonrakerProbe + PrinterBridge 安全门控
 ├── tests/
+│   ├── test_artifacts.py         # 切片软件证据测试(无打印机 I/O)
 │   └── test_moonraker.py        # 就绪状态解析与故障安全门控测试
 ├── tools/
 │   ├── build_test.py            # 非变更式编译 + 测试运行器 (build-test.bat/.sh)
+│   ├── inspect_print_artifact.py # 本地产物证据 JSON CLI
 │   └── bump_version.py          # 同步 pyproject.toml、清单和 CHANGELOG.md
 ├── build-test.bat / build-test.sh  # 仅验证,绝不修改仓库
 ├── build.bat / build.sh            # 先验证,成功后才更新版本 + CHANGELOG
@@ -99,13 +109,19 @@ bash build-test.sh
 bash build.sh
 ```
 
-`build-test` 使用 `py_compile` 编译 `src/` 下的每个模块,并运行完整的 `unittest` 套件(`tests/test_moonraker.py`),证明就绪响应解析和故障安全门控均按预期工作 —— 它不发送任何 G-code、不触碰打印机,也绝不会修改仓库。`build` 会先运行同样的验证,只有成功后才调用 `tools/bump_version.py`,在 `pyproject.toml`、`hydra-umc.project.json` 和 `CHANGELOG.md` 之间同步版本号。目前尚无真正的打印机 `run` 命令 —— 这需要先有经过测试的配置文件、身份验证和物理安全评审。
+`build-test` 使用 `py_compile` 编译 `src/` 和 `tools/` 下的每个模块,并运行完整的 `unittest` 套件(`tests/test_moonraker.py` 和 `tests/test_artifacts.py`),证明就绪响应解析、产物检查和故障安全门控均按预期工作 —— 它不发送任何 G-code、不触碰打印机,也绝不会修改仓库。`build` 会先运行同样的验证,只有成功后才调用 `tools/bump_version.py`,在 `pyproject.toml`、`hydra-umc.project.json` 和 `CHANGELOG.md` 之间同步版本号。目前尚无真正的打印机 `run` 命令 —— 这需要先有经过测试的配置文件、身份验证和物理安全评审。
+
+要在不连接打印机的情况下检查本地切片软件输出:
+
+```bash
+py tools/inspect_print_artifact.py 路径/任务.gcode
+```
 
 ---
 
 ## ✅ 当前状态与后续步骤
 
-**目前真实的部分:** 版本 `0.0.4`,一个已在本地测试过的 Moonraker 就绪适配器(`MoonrakerProbe` + `PrinterBridge`),依托 `HYDRA-UMC-SDK` 的共享任务门控,配有确定性的七项 `unittest` 测试套件(包括只读本地 HTTP `/printer/info` 合同验证),以及已接入 CI 并带 SDK 检出的非变更式 build-test 脚本。
+**目前真实的部分:** 版本 `0.0.7`,一个已在本地测试过的 Moonraker 就绪适配器(`MoonrakerProbe` + `PrinterBridge`),依托 `HYDRA-UMC-SDK` 的共享任务门控,包含主要切片软件系列的只读 G-code/3MF/树脂切片产物与配置文件兼容性证据,配有确定性的十七项 `unittest` 测试套件(包括本地 HTTP `/printer/info` 合同验证),以及已接入 CI 并带 SDK 检出的非变更式 build-test 脚本。
 
 **集成边界:** 打印机的原生固件(通过 Moonraker 的 Klipper)始终保留运动、加热器、热保护和机器联锁;本桥接只负责读取就绪状态,并门控围绕它的*辅助*机器人工作。
 
@@ -146,14 +162,3 @@ bash build.sh
 
 ## 📜 许可证
 GPL-3.0 - 详见 LICENSE。
-
-## 🛠️ 构建与运行
-
-在发布构建之前,使用不带版本递增的构建检查:
-
-| 操作 | Windows | Linux / macOS |
-|---|---|---|
-| 构建检查(不改变版本或 CHANGELOG) | `build-test.bat` | `./build-test.sh` |
-| 运行 / 开发(如提供) | `run*.bat` 或 `dev*.bat` | `./run*.sh` 或 `./dev*.sh` |
-
-`build-test.bat` 和 `build-test.sh` 会编译或验证项目技术栈,但不会递增 `hydra-umc.project.json` 或修改 `CHANGELOG.md`。它们只能产生正常的编译器输出。现有的 `build*.bat`、`build*.sh`、`run*` 和 `dev*` 脚本保留各自项目特定的、带版本管理或运行时行为;在需要这些行为时使用它们。

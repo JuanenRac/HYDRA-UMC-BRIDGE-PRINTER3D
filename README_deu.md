@@ -24,7 +24,7 @@ GPL-3.0-or-later - see LICENSE
 
 ## 1. 🛠️ TECHNISCHER ÜBERBLICK
 
-**HYDRA-UMC-BRIDGE-PRINTER3D** ist der High-Level-Koordinator für offene 3D-Drucksoftware (Moonraker/Klipper) und HYDRA-UMC-Roboterhilfsfunktionen. Die native Drucker-Firmware bleibt jederzeit verantwortlich für Bewegung, Heizelemente, thermischen Schutz und Maschinenverriegelungen — diese Brücke liest nur die Bereitschaft und koordiniert Hilfsfunktionen rundherum.
+**HYDRA-UMC-BRIDGE-PRINTER3D** ist der High-Level-Koordinator für offene 3D-Drucksoftware (Moonraker/Klipper) und HYDRA-UMC-Roboterhilfsfunktionen. Sie erkennt außerdem lokale Slicer-Artefakte schreibgeschützt. Die native Drucker-Firmware bleibt jederzeit verantwortlich für Bewegung, Heizelemente, thermischen Schutz und Maschinenverriegelungen — diese Brücke liest nur die Bereitschaft, erfasst Artefakt-Evidenz und koordiniert Hilfsfunktionen rundherum.
 
 Sie gehört zur Familie **External Automation Bridges**: einer Gruppe von Schwester-Repositories (CNC, LASER, OPENPNP, PRINTER3D, ROS2), die alle denselben gemeinsamen Sicherheitsvertrag von `HYDRA-UMC-SDK` sprechen, sodass keine Brücke ihre eigene Definition von "sicher zum Arbeiten" erfinden kann.
 
@@ -32,6 +32,7 @@ Sie gehört zur Familie **External Automation Bridges**: einer Gruppe von Schwes
 * ✅ **Echte Moonraker-Bereitschaftssonde:** `moonraker.py`s `MoonrakerProbe` konsumiert den dokumentierten `/printer/info`-Endpunkt von Moonraker mit einem kleinen, ausschließlich auf der Standardbibliothek basierenden Client (`urlopen` + `json`) — keine zusätzliche Abhängigkeit über die Python-Standardbibliothek hinaus. *(implementiert, getestet in `tests/test_moonraker.py`)*
 * ✅ **Echtes fail-closed Zustands-Parsing:** `parse_info()` bildet nur die wörtliche Zeichenkette `"ready"` auf `MachineState.IDLE` ab; `startup`/`shutdown`/`error` werden auf `FAULT` abgebildet, und alles andere (einschließlich einer fehlerhaften Antwort) auf `OFFLINE` — niemals auf einen Zustand, der es erlauben würde, einen Roboter rund um den Drucker zu planen. *(implementiert)*
 * ✅ **Echtes gemeinsames Sicherheitsgatter:** jeder beobachtete Auftrag wird über `evaluate_job()` aus dem `bridge_contract` von `HYDRA-UMC-SDK` neu bewertet — demselben Gatter, das jede Schwesterbrücke und HYDRA-UMC-SERVER verwenden. *(implementiert)*
+* ✅ **Slicer-unabhängige Artefaktprüfung:** `artifacts.py` identifiziert einfaches FDM-G-Code von OrcaSlicer, Ultimaker Cura, PrusaSlicer, Bambu Studio und weiteren Slicern ausschließlich über lokale Evidenz; außerdem erkennt es 3MF-Pakete und Lychee-kompatible Resin-Slices ohne Entpacken, Befehlsanalyse, Upload oder Druck. *(implementiert, getestet in `tests/test_artifacts.py`)*
 * ✅ **Nicht-mutierender Build/Test:** `build-test.bat`/`.sh` kompilieren den Antwort-Parser und das Sicherheitsgatter, ohne G-Code zu senden, Versionen zu ändern oder einen Drucker anzufassen. *(implementiert, siehe BUILD & AUSFÜHRUNG unten)*
 * 🔜 **Echte Druckersteuerung (G-Code-Befehle)** — zurückgestellt, bis ein getestetes Profil, Authentifizierung und eine physische Sicherheitsprüfung vorliegen. *(geplant)*
 
@@ -58,6 +59,12 @@ flowchart LR
 * **Warum echte Befehle (G-Code) zuerst ein getestetes Profil, eine Authentifizierung und eine physische Sicherheitsprüfung erfordern.** Moonrakers API kann beliebigen G-Code akzeptieren; ihn ohne validiertes Profil und Authentifizierung zu senden, würde genau die Bereitschaftsprüfung umgehen, für deren Durchsetzung diese Brücke existiert.
 * **Wie das in den Rest des Ökosystems passt.** BRIDGE-PRINTER3D sitzt zwischen Moonraker/Klipper und `HYDRA-UMC-SDK` → `HYDRA-UMC-SERVER` → Zellsicherheit: es koordiniert Roboter-Hilfsarbeit rund um den Drucker, es ersetzt niemals native Firmware, Heizelemente oder thermischen Schutz.
 
+## 🧾 SLICER-ARTEFAKT-KOMPATIBILITÄT
+
+Der schreibgeschützte Artefaktpfad unterstützt normales FDM-G-Code (`.gcode`, `.gco`, `.gc`) aus OrcaSlicer, Ultimaker Cura, PrusaSlicer, Bambu Studio und weiteren Slicern. Bekannte Kommentare liefern einen Herkunftshinweis; ohne Marker bleibt er `unknown-slicer`. `.gcode.3mf` und generische `.3mf` werden erkannt, aber niemals entpackt. Resin-Slices (`.ctb`, `.goo`, `.photon`, `.pwmo`, `.pws`, `.sl1`) aus Lychee-kompatiblen Workflows bleiben absichtlich undurchsichtig und werden nie einem bestimmten Drucker oder Slicer zugeschrieben.
+
+Dies ist Kompatibilität mit **Ausgabe-Artefakten**, keine Fernsteuerung dieser Anwendungen. Die Brücke startet keine Slicer, ändert keine Profile, analysiert/führt keinen G-Code aus, lädt keine Dateien hoch, kontaktiert keine Cloud-Dienste und startet keine Drucke. Die genaue Matrix und Voraussetzungen für spätere Steuerung stehen unter [Slicer-Artefakt-Kompatibilität](docs/SLICER_ARTIFACT_COMPATIBILITY.md).
+
 ---
 
 ## 📂 VERZEICHNISSTRUKTUR
@@ -67,11 +74,14 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 ├── src/
 │   └── hydra_umc_bridge_printer3d/
 │       ├── __init__.py
+│       ├── artifacts.py         # Schreibgeschützte G-Code-, 3MF- und Resin-Slice-Evidenz
 │       └── moonraker.py         # Sicherheitsgatter MoonrakerProbe + PrinterBridge
 ├── tests/
+│   ├── test_artifacts.py         # Slicer-Evidenztests (ohne Drucker-E/A)
 │   └── test_moonraker.py        # Bereitschafts-Parsing- und Ausfallsicherheitsgatter-Tests
 ├── tools/
 │   ├── build_test.py            # Nicht-mutierender Compiler + Testläufer (build-test.bat/.sh)
+│   ├── inspect_print_artifact.py # Lokale Artefakt-Evidenz als JSON-CLI
 │   └── bump_version.py          # Synchronisiert pyproject.toml, Manifest und CHANGELOG.md
 ├── build-test.bat / build-test.sh  # Validiert nur, ändert das Repository nie
 ├── build.bat / build.sh            # Validiert und erhöht bei Erfolg Version + CHANGELOG
@@ -99,13 +109,19 @@ bash build-test.sh
 bash build.sh
 ```
 
-`build-test` kompiliert jedes Modul unter `src/` mit `py_compile` und führt die vollständige `unittest`-Suite aus (`tests/test_moonraker.py`), was das Parsing der Bereitschaftsantwort und das Ausfallsicherheitsgatter belegt — es sendet keinen G-Code, fasst keinen Drucker an und ändert das Repository nie. `build` führt zuerst dieselbe Validierung aus und ruft nur bei Erfolg `tools/bump_version.py` auf, um die Version in `pyproject.toml`, `hydra-umc.project.json` und `CHANGELOG.md` zu synchronisieren. Es gibt noch keinen echten Drucker-`run`-Befehl — dafür sind zuerst ein getestetes Profil, Authentifizierung und eine physische Sicherheitsprüfung erforderlich.
+`build-test` kompiliert jedes Modul unter `src/` und `tools/` mit `py_compile` und führt die vollständige `unittest`-Suite aus (`tests/test_moonraker.py` und `tests/test_artifacts.py`), was das Bereitschafts-Parsing, die Artefaktprüfung und das Ausfallsicherheitsgatter belegt — es sendet keinen G-Code, fasst keinen Drucker an und ändert das Repository nie. `build` führt zuerst dieselbe Validierung aus und ruft nur bei Erfolg `tools/bump_version.py` auf, um die Version in `pyproject.toml`, `hydra-umc.project.json` und `CHANGELOG.md` zu synchronisieren. Es gibt noch keinen echten Drucker-`run`-Befehl — dafür sind zuerst ein getestetes Profil, Authentifizierung und eine physische Sicherheitsprüfung erforderlich.
+
+Um eine lokale Slicer-Ausgabe ohne Druckerkontakt zu prüfen:
+
+```bash
+py tools/inspect_print_artifact.py pfad/zum/auftrag.gcode
+```
 
 ---
 
 ## ✅ AKTUELLER STATUS UND NÄCHSTE SCHRITTE
 
-**Heute real:** Version `0.0.4`, ein lokal getesteter Moonraker-Bereitschaftsadapter (`MoonrakerProbe` + `PrinterBridge`), gestützt auf das gemeinsame Auftragsgatter von `HYDRA-UMC-SDK`, eine deterministische `unittest`-Suite mit sieben Tests einschließlich der schreibgeschützten lokalen HTTP-Vertragsprüfung `/printer/info` sowie nicht-mutierende Build-Test-Skripte, die in CI mit SDK-Checkout eingebunden sind.
+**Heute real:** Version `0.0.7`, ein lokal getesteter Moonraker-Bereitschaftsadapter (`MoonrakerProbe` + `PrinterBridge`), gestützt auf das gemeinsame Auftragsgatter von `HYDRA-UMC-SDK`, schreibgeschützte Evidenz für G-Code/3MF/Resin-Slice-Artefakte und Profilkompatibilität, eine deterministische `unittest`-Suite mit siebzehn Tests einschließlich der lokalen HTTP-Vertragsprüfung `/printer/info` sowie nicht-mutierende Build-Test-Skripte, die in CI mit SDK-Checkout eingebunden sind.
 
 **Integrationsgrenze:** die native Drucker-Firmware (Klipper über Moonraker) behält jederzeit Bewegung, Heizelemente, thermischen Schutz und Maschinenverriegelungen; diese Brücke liest ausschließlich die Bereitschaft und steuert *Hilfs*-Roboterarbeit rund darum.
 
@@ -146,14 +162,3 @@ Dieses Projekt ist Teil eines größeren Robotik-Ökosystems desselben Autors (J
 
 ## 📜 LIZENZ
 GPL-3.0 - Siehe LICENSE für Details.
-
-## 🛠️ BUILD & AUSFÜHRUNG
-
-Verwenden Sie die versionslose Build-Prüfung vor einem Release-Build:
-
-| Aktion | Windows | Linux / macOS |
-|---|---|---|
-| Build-Prüfung (keine Versions- oder CHANGELOG-Änderung) | `build-test.bat` | `./build-test.sh` |
-| Ausführung / Entwicklung (falls vorhanden) | `run*.bat` oder `dev*.bat` | `./run*.sh` oder `./dev*.sh` |
-
-`build-test.bat` und `build-test.sh` kompilieren oder validieren den Projekt-Stack, ohne `hydra-umc.project.json` zu erhöhen oder `CHANGELOG.md` zu ändern. Sie dürfen nur normale Compiler-Ausgaben erzeugen. Bestehende `build*.bat`-, `build*.sh`-, `run*`- und `dev*`-Skripte behalten ihr projektspezifisches, versioniertes oder Laufzeitverhalten; verwenden Sie sie, wenn dieses Verhalten benötigt wird.

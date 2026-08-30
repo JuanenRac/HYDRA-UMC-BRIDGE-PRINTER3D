@@ -2,13 +2,17 @@
   "schema_version": "1.0",
   "ecosystem": "HYDRA-UMC",
   "name": "HYDRA-UMC-BRIDGE-PRINTER3D",
-  "version": "0.0.4",
+  "version": "0.0.7",
   "role": "service",
   "stack": "python",
   "technologies": [
     "Python",
     "Moonraker",
     "Klipper",
+    "G-code",
+    "3MF",
+    "Resin slice artifacts",
+    "Print profile evidence",
     "HYDRA-UMC-SDK"
   ],
   "deployment_target": "cm5",
@@ -16,7 +20,7 @@
   "family": "External Automation Bridges",
   "parent": "HYDRA-UMC-SERVER",
   "build": "python tools/build_test.py",
-  "notes": "Safe coordination boundary for native 3D-printing controllers. It checks readiness and coordinates auxiliaries; it does not replace firmware or heater interlocks.",
+  "notes": "Safe coordination boundary for native 3D-printing controllers. It checks Moonraker readiness, inspects slicer artifacts and matches profile evidence read-only; it does not replace firmware, heater interlocks or send print commands.",
   "native_version": {
     "file": "pyproject.toml",
     "pattern": "^version\\s*=\\s*\"(\\d+)\\.(\\d+)\\.(\\d+)\""
