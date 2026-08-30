@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from typing import Callable
 from urllib.error import URLError
 from urllib.parse import urlparse
 from urllib.request import urlopen
@@ -41,6 +42,35 @@ class MoonrakerProbe:
             return PrinterStatus(MachineState.FAULT, message or f"printer state {state}")
         return PrinterStatus(MachineState.OFFLINE, message or f"unknown printer state {state or 'missing'}")
 
+    @staticmethod
+    def parse_print_stats(payload: dict[str, object]) -> PrinterStatus | None:
+        # Real, closed set of print_stats.state values, researched against
+        # https://moonraker.readthedocs.io/en/latest/printer_objects/ :
+        # standby/printing/paused/complete/error/cancelled. This is a real,
+        # separate axis from klippy_state ("ready"/"startup"/"shutdown"/
+        # "error") - Klipper itself stays klippy_state="ready" throughout an
+        # entire print, so /printer/info alone cannot tell "firmware
+        # connected" apart from "actively mid-print". Returning None means
+        # "no override, defer to klippy_state" (standby/complete/cancelled
+        # all mean the print head is free); RUNNING/HOLDING/FAULT are real
+        # overrides that must win over a bare klippy_state=ready reading.
+        status = payload.get("status", payload)
+        if not isinstance(status, dict):
+            return PrinterStatus(MachineState.OFFLINE, "Moonraker objects/query response is not an object")
+        print_stats = status.get("print_stats")
+        if not isinstance(print_stats, dict):
+            return PrinterStatus(MachineState.OFFLINE, "Moonraker objects/query response is missing print_stats")
+        state = str(print_stats.get("state", "")).lower()
+        if state == "printing":
+            return PrinterStatus(MachineState.RUNNING, "a print is actively in progress")
+        if state == "paused":
+            return PrinterStatus(MachineState.HOLDING, "the current print job is paused")
+        if state == "error":
+            return PrinterStatus(MachineState.FAULT, "the last print job exited with an error")
+        if state in {"standby", "complete", "cancelled"}:
+            return None
+        return PrinterStatus(MachineState.OFFLINE, f"unknown print_stats state {state or 'missing'}")
+
     def fetch(self, base_url: str, timeout_seconds: float = 2.0) -> PrinterStatus:
         # parse_info() above already fails safe (OFFLINE) for a malformed
         # or unexpected-shape response - this was the one gap in that same
@@ -68,14 +98,49 @@ class MoonrakerProbe:
                 "Moonraker endpoint must be an absolute http(s) URL",
             )
 
+        info_status = self._get(f"{normalized_base_url.rstrip('/')}/printer/info", timeout_seconds, self.parse_info)
+        if info_status.state != MachineState.IDLE:
+            # klippy is not ready (startup/shutdown/error) or unreachable -
+            # that already fails closed, so there is no point asking a
+            # printer that is not even connected about its print_stats.
+            return info_status
+
+        # klippy_state=ready alone does not mean the print head is free -
+        # see parse_print_stats()'s own comment. Query the real, separate
+        # print_stats object before trusting IDLE.
+        print_status = self._get(
+            f"{normalized_base_url.rstrip('/')}/printer/objects/query?print_stats=state",
+            timeout_seconds,
+            self.parse_print_stats,
+        )
+        if print_status is None:
+            # standby/complete/cancelled - the print head is genuinely
+            # free, so the original klippy_state=ready reading stands.
+            return info_status
+        # printing/paused/error is a real override that must win over a
+        # bare klippy_state=ready reading; a transport/parse failure here
+        # also comes back as a PrinterStatus(OFFLINE, ...) from _get()'s
+        # own except clause, which correctly fails closed the same way -
+        # a printer whose real print state cannot be confirmed is not
+        # meaningfully safer to trust than one reporting an unknown state.
+        return print_status
+
+    @staticmethod
+    def _get(
+        endpoint: str,
+        timeout_seconds: float,
+        parser: Callable[[dict[str, object]], "PrinterStatus | None"],
+    ) -> "PrinterStatus | None":
+        # Shared transport for both /printer/info and /printer/objects/query -
+        # the same real failure modes (unreachable, malformed, oversized)
+        # apply to either endpoint, so both fail the same safe way.
         try:
-            endpoint = f"{normalized_base_url.rstrip('/')}/printer/info"
             with urlopen(endpoint, timeout=timeout_seconds) as response:  # nosec B310: configured controller endpoint, restricted to HTTP(S) above
                 payload = response.read(_MAX_INFO_BYTES + 1)
             if len(payload) > _MAX_INFO_BYTES:
                 return PrinterStatus(MachineState.OFFLINE, "Moonraker response exceeds the 64 KiB readiness limit")
             parsed_payload = json.loads(payload.decode("utf-8"))
-            return self.parse_info(parsed_payload)
+            return parser(parsed_payload)
         except (URLError, TimeoutError, OSError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as error:
             return PrinterStatus(MachineState.OFFLINE, f"Moonraker unreachable: {error}")
 

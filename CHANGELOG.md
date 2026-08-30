@@ -6,11 +6,29 @@ GPL-3.0-or-later - see LICENSE
 
 # Changelog
 
-## Unreleased
+## [0.0.8] - Real print_stats confirmation, not just klippy_state
 
 - Bound the read-only Moonraker readiness response to 64 KiB before JSON
   decoding. Oversized responses now fail closed as `OFFLINE` instead of
   consuming an unbounded response body.
+- **`moonraker.py`** - `MoonrakerProbe` now also queries Moonraker's real,
+  separate `print_stats` object
+  (`/printer/objects/query?print_stats=state`, researched against
+  [moonraker.readthedocs.io/en/latest/printer_objects](https://moonraker.readthedocs.io/en/latest/printer_objects/))
+  before trusting a bare `klippy_state=ready` reading as `IDLE`. Klipper's
+  own `klippy_state` stays `"ready"` throughout an entire print - it never
+  distinguished "firmware connected" from "actively mid-print", a real gap
+  that could let a new productive job be evaluated as safe to dispatch
+  onto a printer that is genuinely busy. `print_stats.state` is a real,
+  closed set (`standby`/`printing`/`paused`/`complete`/`error`/
+  `cancelled`): `printing` now maps to `RUNNING`, `paused` to `HOLDING`,
+  `error` to `FAULT`; `standby`/`complete`/`cancelled` defer to the
+  original `klippy_state` reading. A failure to confirm `print_stats`
+  itself fails closed to `OFFLINE`, matching this probe's own established
+  reasoning that an unconfirmed printer is not safer to trust than one
+  reporting an unknown state.
+- 9 new/updated regression tests against a real path-aware fixture HTTP
+  server - 25/25 tests passing.
 
 ## [0.0.7] - 2026-08-30
 

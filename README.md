@@ -126,7 +126,7 @@ py tools/inspect_print_artifact.py path/to/job.gcode
 
 ## ✅ Current Status & Next Steps
 
-**Real today:** version `0.0.7`, a locally tested Moonraker readiness adapter (`MoonrakerProbe` + `PrinterBridge`) backed by `HYDRA-UMC-SDK`'s shared job gate, read-only G-code/3MF/resin-slice and profile-compatibility evidence for the major slicer families, a deterministic seventeen-test `unittest` suite including local HTTP `/printer/info` contract verification, and non-mutating build-test scripts wired into CI with an SDK checkout.
+**Real today:** version `0.0.8`, a locally tested Moonraker readiness adapter (`MoonrakerProbe` + `PrinterBridge`) backed by `HYDRA-UMC-SDK`'s shared job gate, read-only G-code/3MF/resin-slice and profile-compatibility evidence for the major slicer families, a deterministic twenty-five-test `unittest` suite including local HTTP `/printer/info` and the real, separate `/printer/objects/query?print_stats=state` contract verification (Klipper's own `klippy_state` stays `"ready"` throughout an entire print, so `print_stats.state` is checked before a printer is ever trusted as idle), and non-mutating build-test scripts wired into CI with an SDK checkout.
 
 **Integration boundary:** native printer firmware (Klipper via Moonraker) retains motion, heaters, thermal protection and machine interlocks at all times; this bridge only ever reads readiness and gates *auxiliary* robot work around it.
 

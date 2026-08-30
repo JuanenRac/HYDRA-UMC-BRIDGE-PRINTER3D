@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "ecosystem": "HYDRA-UMC",
   "name": "HYDRA-UMC-BRIDGE-PRINTER3D",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "role": "service",
   "stack": "python",
   "technologies": [
