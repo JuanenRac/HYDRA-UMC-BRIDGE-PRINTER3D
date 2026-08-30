@@ -6,6 +6,12 @@ GPL-3.0-or-later - see LICENSE
 
 # Changelog
 
+## Unreleased
+
+- Bound the read-only Moonraker readiness response to 64 KiB before JSON
+  decoding. Oversized responses now fail closed as `OFFLINE` instead of
+  consuming an unbounded response body.
+
 ## [0.0.7] - 2026-08-30
 
 - Added `docs/BRIDGE_GUIDE.md`, complementing the slicer and profile-boundary

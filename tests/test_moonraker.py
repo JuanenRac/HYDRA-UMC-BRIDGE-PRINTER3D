@@ -16,10 +16,11 @@ class MoonrakerFixtureHandler(BaseHTTPRequestHandler):
     """Serve the documented read-only Moonraker readiness response."""
 
     request_path = ""
+    response_override: bytes | None = None
 
     def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler requires this name.
         type(self).request_path = self.path
-        payload = json.dumps({"state": "ready", "state_message": "Printer is ready"}).encode("utf-8")
+        payload = type(self).response_override or json.dumps({"state": "ready", "state_message": "Printer is ready"}).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
@@ -79,6 +80,15 @@ class MoonrakerTests(unittest.TestCase):
         status = MoonrakerProbe().fetch(None)  # type: ignore[arg-type]
         self.assertEqual(status.state, MachineState.OFFLINE)
         self.assertIn("http(s)", status.message)
+
+    def test_oversized_moonraker_response_fails_closed_before_json_parsing(self):
+        MoonrakerFixtureHandler.response_override = b"{" + b"x" * (64 * 1024 + 1)
+        try:
+            status = MoonrakerProbe().fetch(f"http://127.0.0.1:{self.server.server_port}")
+        finally:
+            MoonrakerFixtureHandler.response_override = None
+        self.assertEqual(status.state, MachineState.OFFLINE)
+        self.assertIn("64 KiB", status.message)
 
 
 if __name__ == "__main__":

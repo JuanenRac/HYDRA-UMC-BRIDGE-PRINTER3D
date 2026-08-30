@@ -8,7 +8,7 @@ GPL-3.0-or-later - see LICENSE
 
 ## Scope and operating model
 
-The bridge separates three read-only lanes: Moonraker readiness (`/printer/info`), local slicer-artifact evidence, and declared artifact/profile compatibility. `MoonrakerProbe` maps only literal `ready` to idle. `inspect_artifact()` fingerprints G-code, 3MF and resin-slice candidates without unpacking or parsing commands. `assess_artifact_profile()` can confirm metadata compatibility but always returns `execution_authorized: false`.
+The bridge separates three read-only lanes: Moonraker readiness (`/printer/info`), local slicer-artifact evidence, and declared artifact/profile compatibility. `MoonrakerProbe` maps only literal `ready` to idle and bounds an HTTP readiness payload to 64 KiB before JSON parsing; an oversized or malformed response is `OFFLINE`. `inspect_artifact()` fingerprints G-code, 3MF and resin-slice candidates without unpacking or parsing commands. `assess_artifact_profile()` can confirm metadata compatibility but always returns `execution_authorized: false`.
 
 No module starts a slicer, modifies a profile, sends G-code, uploads a file, controls heaters or starts a print.
 

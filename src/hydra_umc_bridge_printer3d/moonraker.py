@@ -16,6 +16,9 @@ from urllib.request import urlopen
 from hydra_umc_sdk.bridge_contract import BridgeJob, CellState, GateDecision, MachineState, evaluate_job
 
 
+_MAX_INFO_BYTES = 64 * 1024
+
+
 @dataclass(frozen=True)
 class PrinterStatus:
     state: MachineState
@@ -68,7 +71,11 @@ class MoonrakerProbe:
         try:
             endpoint = f"{normalized_base_url.rstrip('/')}/printer/info"
             with urlopen(endpoint, timeout=timeout_seconds) as response:  # nosec B310: configured controller endpoint, restricted to HTTP(S) above
-                return self.parse_info(json.load(response))
+                payload = response.read(_MAX_INFO_BYTES + 1)
+            if len(payload) > _MAX_INFO_BYTES:
+                return PrinterStatus(MachineState.OFFLINE, "Moonraker response exceeds the 64 KiB readiness limit")
+            parsed_payload = json.loads(payload.decode("utf-8"))
+            return self.parse_info(parsed_payload)
         except (URLError, TimeoutError, OSError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as error:
             return PrinterStatus(MachineState.OFFLINE, f"Moonraker unreachable: {error}")
 
