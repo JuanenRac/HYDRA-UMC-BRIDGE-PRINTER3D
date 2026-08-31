@@ -6,6 +6,24 @@ GPL-3.0-or-later - see LICENSE
 
 # Changelog
 
+## [0.1.0] - Real MQTT transport over the real broker
+
+- **`mqtt_transport.py`** (new) - reaches this bridge's already-real logic
+  (`MoonrakerJobControl.start_job`/`pause_job`/`resume_job`/`cancel_job`,
+  `PrinterBridge.plan`) over `HYDRA-UMC-MQTT-BROKER`, per the ecosystem's
+  own "MQTT via the real broker, real commands included" decision -
+  `hydra/bridges/printer3d/cmd/{status,job,start,pause,resume,cancel}` in,
+  `hydra/bridges/printer3d/state` (retained) and `.../cmd/<verb>/result`
+  out. `PrinterMqttBridge.handle_message()` is a pure(ish) topic
+  dispatcher over a Moonraker base URL - fully testable against the same
+  local `ThreadingHTTPServer` Moonraker fixture `test_moonraker.py`
+  already uses, no real broker required. Adds no new physical authority:
+  every command sent is one `moonraker.py` already implemented, and the
+  same boundary (never streams raw G-code, never touches firmware/
+  heaters/motion directly) applies unchanged. `run_forever()` is the thin
+  real-I/O glue, lazily importing the new optional `paho-mqtt` dependency.
+  16 new tests.
+
 ## [0.0.9] - Real, SDK-gated job commands (pre-real: connected, not simulated)
 
 - **`moonraker.py`** - added `MoonrakerJobControl`, this bridge's first real

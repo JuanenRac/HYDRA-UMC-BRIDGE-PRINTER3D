@@ -7,6 +7,7 @@
 
 from .artifacts import PrintArtifact, PrintArtifactKind, PrintTechnology, inspect_artifact
 from .moonraker import JobCommandResult, MoonrakerJobControl, MoonrakerProbe, PrinterBridge, PrinterStatus
+from .mqtt_transport import MqttPublish, PrinterMqttBridge, run_forever
 from .profiles import ArtifactProfileAssessment, PrintProfile, assess_artifact_profile
 
 __all__ = [
@@ -22,4 +23,7 @@ __all__ = [
     "PrintProfile",
     "ArtifactProfileAssessment",
     "assess_artifact_profile",
+    "PrinterMqttBridge",
+    "MqttPublish",
+    "run_forever",
 ]

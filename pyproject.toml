@@ -8,10 +8,17 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "hydra-umc-bridge-printer3d"
-version = "0.0.9"
+version = "0.1.0"
 description = "Fail-safe HYDRA-UMC coordinator for 3D-printer software"
 requires-python = ">=3.11"
 license = {text = "GPL-3.0-or-later"}
 dependencies = ["hydra-umc-sdk @ git+https://github.com/JuanenRac/HYDRA-UMC-SDK.git@main#subdirectory=clients/python"]
+
+[project.optional-dependencies]
+# Only run_forever() needs this - it's imported lazily (see
+# mqtt_transport.py's own comment) so the rest of the package, including
+# every topic-dispatch test, works without it installed.
+mqtt = ["paho-mqtt>=2.0"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
