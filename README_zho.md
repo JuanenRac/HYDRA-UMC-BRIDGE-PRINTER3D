@@ -159,6 +159,7 @@ py tools/inspect_print_artifact.py 路径/任务.gcode
 ## 👤 作者
 **JuanenRac** (Electro Hobby 3D)
 📧 electrohobby3d@gmail.com
+📺 [youtube.com/@electrohobby3d](https://youtube.com/@electrohobby3d)
 
 ## 📜 许可证
 GPL-3.0 - 详见 LICENSE。
