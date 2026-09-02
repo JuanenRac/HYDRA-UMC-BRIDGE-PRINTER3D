@@ -124,7 +124,7 @@ py tools/inspect_print_artifact.py percorso/del/lavoro.gcode
 
 ## ✅ STATO ATTUALE E PROSSIMI PASSI
 
-**Reale oggi:** versione `0.0.7`, un adattatore di prontezza Moonraker testato in locale (`MoonrakerProbe` + `PrinterBridge`) appoggiato sulla porta di lavoro condivisa di `HYDRA-UMC-SDK`, evidenza in sola lettura di artefatti G-code/3MF/slice di resina e compatibilità del profilo, una suite `unittest` deterministica di diciassette test che include la verifica del contratto HTTP locale `/printer/info`, e script build-test non mutanti collegati alla CI con checkout dell'SDK.
+**Reale oggi:** versione `0.1.0`, un adattatore di prontezza Moonraker testato in locale (`MoonrakerProbe` + `PrinterBridge`) appoggiato sulla porta di lavoro condivisa di `HYDRA-UMC-SDK`, veri comandi di lavoro controllati dall'SDK (`MoonrakerJobControl`: avviare/mettere in pausa/riprendere/annullare un file già caricato tramite la vera API REST di Moonraker), evidenza in sola lettura di artefatti G-code/3MF/slice di resina e compatibilità del profilo per le principali famiglie di slicer, una suite `unittest` deterministica di quarantanove test che include la verifica del contratto HTTP locale `/printer/info`, il vero e separato contratto `/printer/objects/query?print_stats=state`, e la vera verifica dei comandi di lavoro `POST`, e script build-test non mutanti collegati alla CI con checkout dell'SDK.
 
 **Confine di integrazione:** il firmware nativo della stampante (Klipper via Moonraker) mantiene sempre il movimento, i riscaldatori, la protezione termica e gli interblocchi macchina; questo ponte si limita a leggere la prontezza e a regolare il lavoro robotico *ausiliario* attorno ad essa.
 
