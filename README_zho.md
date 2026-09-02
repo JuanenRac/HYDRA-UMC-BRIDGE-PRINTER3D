@@ -33,8 +33,10 @@ GPL-3.0-or-later - see LICENSE
 * ✅ **真实的故障安全状态解析:** `parse_info()` 只把字面字符串 `"ready"` 映射为 `MachineState.IDLE`;`startup`/`shutdown`/`error` 映射为 `FAULT`,其余情况(包括格式错误的响应)一律映射为 `OFFLINE`——绝不会映射到允许围绕打印机规划机器人动作的状态。*(已实现)*
 * ✅ **真实的共享安全门控:** 每个被观察到的任务都会通过 `HYDRA-UMC-SDK` 的 `bridge_contract` 中的 `evaluate_job()` 重新评估,这与所有兄弟桥接以及 HYDRA-UMC-SERVER 使用的是同一个门控。*(已实现)*
 * ✅ **独立于切片软件的产物检查:** `artifacts.py` 只通过本地证据识别 OrcaSlicer、Ultimaker Cura、PrusaSlicer、Bambu Studio 和其他切片软件生成的普通 FDM G-code；它也能识别 3MF 包和兼容 Lychee 的树脂切片，且不会解包、解析命令、上传或打印。*(已实现,并在 `tests/test_artifacts.py` 中测试)*
+* ✅ **配置文件证据边界:** `profiles.py` 可以将检查过的产物与已声明的 FDM 或树脂配置文件进行匹配,但即使匹配成功也会返回 `execution_authorized=False`。*(已实现,在 `tests/test_profiles.py` 中测试)*
+* ✅ **真实的、由 SDK 门控的作业命令:** `MoonrakerJobControl` 向 Moonraker 文档化的 `/printer/print/start|pause|resume|cancel` 端点发送真实的 `POST` 请求——`start_job()` 受与本生态系统中所有生产性调度相同的 `evaluate_job()` 决策门控;`pause_job()`/`cancel_job()` 始终被允许(与 `ABORT` 相同的降级逻辑);`resume_job()` 要求打印机真正处于 `HOLDING` 状态。它只按名称启动一个已上传、已切片的文件——从不流式传输原始 G-code。*(已实现,在 `tests/test_moonraker.py` 中测试)*
 * ✅ **非变更式构建/测试:** `build-test.bat`/`.sh` 编译响应解析器和安全门控,不发送 G-code、不改变版本、不触碰打印机。*(已实现,见下方"构建与运行")*
-* 🔜 **真正的打印机控制(G-code 命令)** —— 推迟到已有经过测试的配置文件、身份验证和物理安全评审之后。*(计划中)*
+* 🔜 **原始 G-code 流式传输:** 刻意仍然推迟——发送任意底层命令(而非一个已命名、已切片的作业)需要经过测试的配置文件、身份验证以及本桥目前还不具备的物理安全评审。*(计划中)*
 
 ---
 
@@ -56,7 +58,8 @@ flowchart LR
 * **为什么解析逻辑是一个独立于网络获取的 `@staticmethod`。** `MoonrakerProbe.parse_info()` 接收一个普通的 `dict`,完全可以在不进行网络调用、不需要运行中的打印机的情况下做单元测试;`fetch()` 是调用它的、必然涉及网络的薄层部分。与安全相关的逻辑正好位于那个永远不需要真实打印机就能测试的部分。
 * **为什么探测器使用标准库的 `urlopen`/`json`,而不是某个 Moonraker 客户端库。** 把依赖面限制在 Python 标准库内,能让与安全相关的解析逻辑保持最小化、可审计,并且不受第三方客户端自身在重试、超时或错误处理上的假设所影响。
 * **为什么桥接会构造一个新的 `BridgeJob` 并委托给共享的 `evaluate_job()`,而不是自己编写接受/拒绝逻辑。** 全部五个 External Automation Bridges(CNC、LASER、OPENPNP、PRINTER3D、ROS2)都复用 `HYDRA-UMC-SDK` 中完全相同的 `bridge_contract`,因此"什么才算安全到可以启动任务"不会在它们之间悄悄产生分歧。
-* **为什么真正的命令(G-code)需要先有经过测试的配置文件、身份验证和物理安全评审。** Moonraker 的 API 可以接受任意 G-code;在没有经过验证的配置文件和身份验证的情况下发送它,恰恰会绕过本桥接存在的意义——执行就绪检查。
+* **为什么任务命令(start/pause/resume/cancel)是真实的,而原始 G-code 流式传输还不是。** Moonraker 的 `/printer/print/*` 端点始终只是按名称引用一个已经上传、已经切片好的文件——这与 Moonraker/Klipper 自身已经在该文件上强制执行的安全边界相同。任意的原始 G-code 是一个从根本上不同、大得多的信任面(它可以包含任何内容),仍然需要经过测试的配置文件、身份验证和物理安全评审,而本桥接目前还没有这些。
+* **为什么 `resume_job()` 不复用通用的 `evaluate_job()` 关卡。** 那个关卡是围绕"生产性工作需要一台处于 IDLE 状态的机器"构建的——这与恢复一个已暂停的任务正好相反,后者只有从 `HOLDING` 状态出发才有意义。与 DROIDS 的 `stand_request()`/`sit_request()` 已经使用的独立关卡逻辑相同。
 * **它如何融入整个生态系统。** BRIDGE-PRINTER3D 位于 Moonraker/Klipper 与 `HYDRA-UMC-SDK` → `HYDRA-UMC-SERVER` → 单元安全之间:它协调围绕打印机的辅助机器人工作,绝不会取代原生固件、加热器或热保护。
 
 ## 🧾 切片软件产物兼容性
@@ -137,6 +140,7 @@ py tools/inspect_print_artifact.py 路径/任务.gcode
 
 - **[HYDRA-UMC-SDK](https://github.com/JuanenRac/HYDRA-UMC-SDK)** —— 共享的 `bridge_contract` 任务门控,本桥接(以及所有其他桥接)都通过它评估任务。
 - **[HYDRA-UMC-SERVER](https://github.com/JuanenRac/HYDRA-UMC-SERVER)** —— 本桥接汇报的经过授权的协调端点。
+- **[HYDRA-UMC-MQTT-BROKER](https://github.com/JuanenRac/HYDRA-UMC-MQTT-BROKER)** —— 为本桥自身的 `hydra/bridges/printer3d/...` 主题(状态、真实的 Moonraker start/pause/resume/cancel、共享作业门控)提供的 `mqtt_transport.py` 真实传输 - 详见该仓库自身的 `docs/BRIDGE_TOPICS.md`。
 - **[HYDRA-UMC-SAFETY-ZONES](https://github.com/JuanenRac/HYDRA-UMC-SAFETY-ZONES)** —— 未来的工作空间安全证据。
 
 ### 生态系统的其余部分

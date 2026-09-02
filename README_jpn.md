@@ -33,8 +33,10 @@ GPL-3.0-or-later - see LICENSE
 * ✅ **実在するフェイルクローズドな状態解析:** `parse_info()` は文字列 `"ready"` のみを `MachineState.IDLE` にマッピングする。`startup`/`shutdown`/`error` は `FAULT` に、それ以外(不正な形式のレスポンスを含む)はすべて `OFFLINE` にマッピングされる —— プリンター周辺でロボットの計画を許可してしまうような状態には決してマッピングされない。*(実装済み)*
 * ✅ **実在する共有安全ゲート:** 観測されたすべてのジョブは `HYDRA-UMC-SDK` の `bridge_contract` にある `evaluate_job()` を通じて再評価される。これは他のすべての兄弟ブリッジとHYDRA-UMC-SERVERが使うのと同じゲートである。*(実装済み)*
 * ✅ **スライサー非依存の成果物検査:** `artifacts.py` はOrcaSlicer、Ultimaker Cura、PrusaSlicer、Bambu Studioなどが生成する通常のFDM G-codeをローカル証拠だけで識別する。また、3MFパッケージとLychee互換のレジンスライスも、展開、コマンド解析、アップロード、印刷をせずに認識する。*(実装済み、`tests/test_artifacts.py` でテスト済み)*
+* ✅ **プロファイル証跡の境界:** `profiles.py` は検査済みのアーティファクトを宣言済みの FDM または樹脂プロファイルと照合できるが、一致した場合でも `execution_authorized=False` を返す。*(実装済み、`tests/test_profiles.py` でテスト済み)*
+* ✅ **実際の、SDK によってゲートされたジョブコマンド:** `MoonrakerJobControl` は Moonraker の文書化された `/printer/print/start|pause|resume|cancel` エンドポイントに実際の `POST` リクエストを送信する —— `start_job()` は、このエコシステムのすべての生産的ディスパッチが使う同じ `evaluate_job()` の判定によってゲートされる。`pause_job()`/`cancel_job()` は常に許可される（`ABORT` と同じデエスカレーションの理由による）。`resume_job()` はプリンターが本当に `HOLDING` 状態であることを要求する。すでにアップロード済み・スライス済みのファイルを名前で開始するだけであり、生の G-code をストリーミングすることは決してない。*(実装済み、`tests/test_moonraker.py` でテスト済み)*
 * ✅ **非破壊的なビルド/テスト:** `build-test.bat`/`.sh` は、G-codeを送信せず、バージョンを変更せず、プリンターに一切触れずに、レスポンスパーサーと安全ゲートをコンパイルする。*(実装済み、下記「ビルドと実行」を参照)*
-* 🔜 **実際のプリンター制御(G-codeコマンド)** —— テスト済みプロファイル、認証、物理的安全レビューが整うまで保留されている。*(計画中)*
+* 🔜 **生の G-code ストリーミング:** 意図的に依然として保留されている——任意の低レベルコマンド（名前付きの、すでにスライス済みのジョブではない）を送信するには、テスト済みのプロファイル、認証、そしてこのブリッジがまだ持っていない物理的安全レビューが必要である。*(計画中)*
 
 ---
 
@@ -56,7 +58,8 @@ flowchart LR
 * **なぜパース処理はネットワーク取得とは別の `@staticmethod` になっているのか。** `MoonrakerProbe.parse_info()` は単純な `dict` を受け取り、ネットワーク呼び出しや稼働中のプリンターなしに完全にユニットテスト可能である。`fetch()` はそれを呼び出す薄い、必然的にネットワークを伴う部分である。安全に関わるロジックは、テストに実物のプリンターを一切必要としない部分に存在する。
 * **なぜプローブはMoonrakerクライアントライブラリではなく標準ライブラリの `urlopen`/`json` を使うのか。** 依存範囲をPython標準ライブラリに限定することで、安全に関わる解析処理を最小限かつ監査可能に保ち、リトライやタイムアウト、エラー処理に関するサードパーティクライアント独自の前提を排除できる。
 * **なぜブリッジは新しい `BridgeJob` を組み立て、独自の受理/拒否ロジックを書く代わりに共有の `evaluate_job()` に委譲するのか。** 5つのExternal Automation Bridges(CNC、LASER、OPENPNP、PRINTER3D、ROS2)はすべて `HYDRA-UMC-SDK` の全く同じ `bridge_contract` を再利用しており、「何をもってジョブ開始が安全とみなすか」がそれぞれの間で静かに食い違うことがない。
-* **なぜ実際のコマンド(G-code)には事前にテスト済みプロファイル、認証、物理的安全レビューが必要なのか。** MoonrakerのAPIは任意のG-codeを受け付けることができる。検証済みのプロファイルと認証なしにそれを送信することは、このブリッジが存在意義とするレディネスチェックそのものを回避することになってしまう。
+* **なぜジョブコマンド(start/pause/resume/cancel)は実物であり、生のG-codeストリーミングはまだそうではないのか。** Moonrakerの `/printer/print/*` エンドポイントは、すでにアップロード済みでスライス済みのファイルを名前で参照するだけである - Moonraker/Klipper自身がそのファイルに対してすでに適用している同じ安全の枠組みである。任意の生のG-codeは根本的に異なる、はるかに大きな信頼サーフェスであり(何でも含みうる)、テスト済みプロファイル、認証、物理的安全レビューがまだ必要であり、このブリッジにはまだそれがない。
+* **なぜ `resume_job()` は汎用の `evaluate_job()` ゲートを再利用しないのか。** そのゲートは「生産的な作業にはIDLE状態のマシンが必要」という考え方で構築されている - これは一時停止したジョブの再開とは逆であり、`HOLDING` からのみ意味をなす。DROIDSの `stand_request()`/`sit_request()` ですでに使われているのと同じ、独立したゲートの理屈である。
 * **エコシステムの他部分とどう関係するか。** BRIDGE-PRINTER3DはMoonraker/Klipperと `HYDRA-UMC-SDK` → `HYDRA-UMC-SERVER` → セル安全との間に位置する。プリンターの周辺で補助ロボット作業を連携させるものであり、ネイティブファームウェア、ヒーター、熱保護を置き換えることは決してない。
 
 ## 🧾 スライサー成果物の互換性
@@ -137,6 +140,7 @@ py tools/inspect_print_artifact.py パス/ジョブ.gcode
 
 - **[HYDRA-UMC-SDK](https://github.com/JuanenRac/HYDRA-UMC-SDK)** —— このブリッジ(および他のすべてのブリッジ)がジョブを評価する共有の `bridge_contract` ジョブゲート。
 - **[HYDRA-UMC-SERVER](https://github.com/JuanenRac/HYDRA-UMC-SERVER)** —— このブリッジが報告する認可済み連携エンドポイント。
+- **[HYDRA-UMC-MQTT-BROKER](https://github.com/JuanenRac/HYDRA-UMC-MQTT-BROKER)** —— このブリッジ自身の `hydra/bridges/printer3d/...` トピック（状態、実際の Moonraker start/pause/resume/cancel、共有ジョブゲート）向けの `mqtt_transport.py` による実際のトランスポート - 詳細はそのリポジトリ自身の `docs/BRIDGE_TOPICS.md` を参照。
 - **[HYDRA-UMC-SAFETY-ZONES](https://github.com/JuanenRac/HYDRA-UMC-SAFETY-ZONES)** —— 将来の作業空間安全実証。
 
 ### エコシステムのその他
