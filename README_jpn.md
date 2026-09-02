@@ -78,14 +78,24 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   └── hydra_umc_bridge_printer3d/
 │       ├── __init__.py
 │       ├── artifacts.py         # 読み取り専用G-code・3MF・レジンスライス証拠
-│       └── moonraker.py         # MoonrakerProbe + PrinterBridge 安全ゲート
+│       ├── profiles.py          # プロファイル互換性の証拠。印刷許可では決してない
+│       ├── moonraker.py         # MoonrakerProbe + PrinterBridge 安全ゲート
+│       └── mqtt_transport.py    # このbridgeの既存の実Moonrakerロジック向けの実MQTTブローカー転送
 ├── tests/
 │   ├── test_artifacts.py         # スライサー証拠テスト(プリンターI/Oなし)
-│   └── test_moonraker.py        # レディネス解析とフェイルセーフゲートのテスト
+│   ├── test_profiles.py         # プロファイル照合は常に実行を拒否する
+│   ├── test_moonraker.py        # レディネス解析とフェイルセーフゲートのテスト
+│   └── test_mqtt_transport.py   # 疑似ブローカークライアントに対するMQTTコマンド/ステータス形状テスト
 ├── tools/
 │   ├── build_test.py            # 非破壊的なコンパイル+テストランナー (build-test.bat/.sh)
 │   ├── inspect_print_artifact.py # ローカル成果物証拠JSON CLI
 │   └── bump_version.py          # pyproject.toml、マニフェスト、CHANGELOG.md を同期
+├── docs/
+│   ├── BRIDGE_GUIDE.md                        # 適用範囲、対応プラットフォーム、スクリプト、ハードウェア受け入れゲート
+│   ├── PRINT_PROFILE_BOUNDARY.md              # プロファイル互換性の証拠が印刷許可に対して意味すること
+│   └── SLICER_ARTIFACT_COMPATIBILITY.md       # このbridgeが証拠として読み取れるスライサー成果物形式
+├── images/
+│   └── HYDRA_UMC_BANNER.svg     # README バナー
 ├── build-test.bat / build-test.sh  # 検証のみ、リポジトリを一切変更しない
 ├── build.bat / build.sh            # 検証後、成功時のみバージョン + CHANGELOG を更新
 ├── pyproject.toml               # パッケージメタデータ。HYDRA-UMC-SDK に依存 (git)

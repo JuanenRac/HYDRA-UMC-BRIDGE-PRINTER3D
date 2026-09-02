@@ -78,14 +78,24 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   └── hydra_umc_bridge_printer3d/
 │       ├── __init__.py
 │       ├── artifacts.py         # Evidencia solo lectura de G-code, 3MF y slices de resina
-│       └── moonraker.py         # Puerta de seguridad MoonrakerProbe + PrinterBridge
+│       ├── profiles.py          # Evidencia de compatibilidad de perfiles; nunca autorización de impresión
+│       ├── moonraker.py         # Puerta de seguridad MoonrakerProbe + PrinterBridge
+│       └── mqtt_transport.py    # Transporte MQTT real para la lógica ya real de Moonraker de este bridge
 ├── tests/
 │   ├── test_artifacts.py         # Pruebas de evidencia de slicer (sin E/S de impresora)
-│   └── test_moonraker.py        # Pruebas de análisis de disponibilidad y puerta de seguridad
+│   ├── test_profiles.py         # El emparejamiento de perfiles siempre deniega la ejecución
+│   ├── test_moonraker.py        # Pruebas de análisis de disponibilidad y puerta de seguridad
+│   └── test_mqtt_transport.py   # Tests de forma de comando/estado MQTT contra un cliente de broker simulado
 ├── tools/
 │   ├── build_test.py            # Compilador + ejecutor de pruebas no mutante (build-test.bat/.sh)
 │   ├── inspect_print_artifact.py # CLI JSON de evidencia local del artefacto
 │   └── bump_version.py          # Sincroniza pyproject.toml, manifiesto y CHANGELOG.md
+├── docs/
+│   ├── BRIDGE_GUIDE.md                        # Alcance, plataformas compatibles, scripts, puerta de aceptación de hardware
+│   ├── PRINT_PROFILE_BOUNDARY.md              # Qué significa la evidencia de compatibilidad de perfiles frente a la autorización de impresión
+│   └── SLICER_ARTIFACT_COMPATIBILITY.md       # Qué formatos de artefacto de slicer puede leer este bridge como evidencia
+├── images/
+│   └── HYDRA_UMC_BANNER.svg     # Banner del README
 ├── build-test.bat / build-test.sh  # Solo valida, nunca modifica el repositorio
 ├── build.bat / build.sh            # Valida y, solo si tiene éxito, sube versión + CHANGELOG
 ├── pyproject.toml               # Metadatos del paquete; depende de HYDRA-UMC-SDK (git)

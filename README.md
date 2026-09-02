@@ -83,15 +83,23 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │       ├── __init__.py
 │       ├── artifacts.py         # Read-only G-code, 3MF and resin-slice evidence
 │       ├── profiles.py          # Profile compatibility evidence; never print authorization
-│       └── moonraker.py         # MoonrakerProbe + PrinterBridge safety gate
+│       ├── moonraker.py         # MoonrakerProbe + PrinterBridge safety gate
+│       └── mqtt_transport.py    # Real MQTT broker transport for this bridge's own already-real Moonraker commands
 ├── tests/
 │   ├── test_artifacts.py         # Slicer artifact evidence tests (no printer I/O)
 │   ├── test_profiles.py          # Profile matching always denies execution
-│   └── test_moonraker.py        # Readiness parsing and fail-safe gate tests
+│   ├── test_moonraker.py        # Readiness parsing and fail-safe gate tests
+│   └── test_mqtt_transport.py   # MQTT command/status shape tests against a fake broker client
 ├── tools/
 │   ├── build_test.py            # Non-mutating compile + test runner (build-test.bat/.sh)
 │   ├── inspect_print_artifact.py # Local artifact evidence JSON CLI
 │   └── bump_version.py          # Synchronizes pyproject.toml, manifest and CHANGELOG.md
+├── docs/
+│   ├── BRIDGE_GUIDE.md                        # Scope, compatible platforms, scripts, hardware acceptance gate
+│   ├── PRINT_PROFILE_BOUNDARY.md              # What profile-compatibility evidence means vs. print authorization
+│   └── SLICER_ARTIFACT_COMPATIBILITY.md       # Which slicer artifact formats this bridge can read as evidence
+├── images/
+│   └── HYDRA_UMC_BANNER.svg     # README banner
 ├── build-test.bat / build-test.sh  # Validate only, never modifies the repository
 ├── build.bat / build.sh            # Validate, then bump version + CHANGELOG on success
 ├── pyproject.toml               # Package metadata; depends on HYDRA-UMC-SDK (git)

@@ -78,14 +78,24 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   └── hydra_umc_bridge_printer3d/
 │       ├── __init__.py
 │       ├── artifacts.py         # Schreibgeschützte G-Code-, 3MF- und Resin-Slice-Evidenz
-│       └── moonraker.py         # Sicherheitsgatter MoonrakerProbe + PrinterBridge
+│       ├── profiles.py          # Profilkompatibilitäts-Evidenz; niemals Druckautorisierung
+│       ├── moonraker.py         # Sicherheitsgatter MoonrakerProbe + PrinterBridge
+│       └── mqtt_transport.py    # Echter MQTT-Broker-Transport für die bereits reale Moonraker-Logik dieser Bridge
 ├── tests/
 │   ├── test_artifacts.py         # Slicer-Evidenztests (ohne Drucker-E/A)
-│   └── test_moonraker.py        # Bereitschafts-Parsing- und Ausfallsicherheitsgatter-Tests
+│   ├── test_profiles.py         # Profilabgleich verweigert die Ausführung immer
+│   ├── test_moonraker.py        # Bereitschafts-Parsing- und Ausfallsicherheitsgatter-Tests
+│   └── test_mqtt_transport.py   # MQTT-Befehls-/Statusform-Tests gegen einen simulierten Broker-Client
 ├── tools/
 │   ├── build_test.py            # Nicht-mutierender Compiler + Testläufer (build-test.bat/.sh)
 │   ├── inspect_print_artifact.py # Lokale Artefakt-Evidenz als JSON-CLI
 │   └── bump_version.py          # Synchronisiert pyproject.toml, Manifest und CHANGELOG.md
+├── docs/
+│   ├── BRIDGE_GUIDE.md                        # Umfang, kompatible Plattformen, Skripte, Hardware-Abnahmegatter
+│   ├── PRINT_PROFILE_BOUNDARY.md              # Was Profilkompatibilitäts-Evidenz bedeutet vs. Druckautorisierung
+│   └── SLICER_ARTIFACT_COMPATIBILITY.md       # Welche Slicer-Artefaktformate diese Bridge als Evidenz lesen kann
+├── images/
+│   └── HYDRA_UMC_BANNER.svg     # README-Banner
 ├── build-test.bat / build-test.sh  # Validiert nur, ändert das Repository nie
 ├── build.bat / build.sh            # Validiert und erhöht bei Erfolg Version + CHANGELOG
 ├── pyproject.toml               # Paket-Metadaten; hängt von HYDRA-UMC-SDK ab (git)

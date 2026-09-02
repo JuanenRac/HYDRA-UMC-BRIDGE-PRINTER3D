@@ -78,14 +78,24 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   └── hydra_umc_bridge_printer3d/
 │       ├── __init__.py
 │       ├── artifacts.py         # 只读 G-code、3MF 和树脂切片证据
-│       └── moonraker.py         # MoonrakerProbe + PrinterBridge 安全门控
+│       ├── profiles.py          # 配置文件兼容性证据;绝非打印授权
+│       ├── moonraker.py         # MoonrakerProbe + PrinterBridge 安全门控
+│       └── mqtt_transport.py    # 面向此 bridge 已有真实 Moonraker 逻辑的真实 MQTT broker 传输
 ├── tests/
 │   ├── test_artifacts.py         # 切片软件证据测试(无打印机 I/O)
-│   └── test_moonraker.py        # 就绪状态解析与故障安全门控测试
+│   ├── test_profiles.py         # 配置文件匹配始终拒绝执行
+│   ├── test_moonraker.py        # 就绪状态解析与故障安全门控测试
+│   └── test_mqtt_transport.py   # 针对模拟 broker 客户端的 MQTT 命令/状态格式测试
 ├── tools/
 │   ├── build_test.py            # 非变更式编译 + 测试运行器 (build-test.bat/.sh)
 │   ├── inspect_print_artifact.py # 本地产物证据 JSON CLI
 │   └── bump_version.py          # 同步 pyproject.toml、清单和 CHANGELOG.md
+├── docs/
+│   ├── BRIDGE_GUIDE.md                        # 范围、兼容平台、脚本、硬件验收门控
+│   ├── PRINT_PROFILE_BOUNDARY.md              # 配置文件兼容性证据相对于打印授权意味着什么
+│   └── SLICER_ARTIFACT_COMPATIBILITY.md       # 此 bridge 可作为证据读取的切片软件产物格式
+├── images/
+│   └── HYDRA_UMC_BANNER.svg     # README 横幅图
 ├── build-test.bat / build-test.sh  # 仅验证,绝不修改仓库
 ├── build.bat / build.sh            # 先验证,成功后才更新版本 + CHANGELOG
 ├── pyproject.toml               # 包元数据;依赖 HYDRA-UMC-SDK (git)

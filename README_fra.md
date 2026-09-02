@@ -78,14 +78,24 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   └── hydra_umc_bridge_printer3d/
 │       ├── __init__.py
 │       ├── artifacts.py         # Preuve en lecture seule G-code, 3MF et slice de résine
-│       └── moonraker.py         # Portail de sécurité MoonrakerProbe + PrinterBridge
+│       ├── profiles.py          # Preuve de compatibilité de profil ; jamais une autorisation d'impression
+│       ├── moonraker.py         # Portail de sécurité MoonrakerProbe + PrinterBridge
+│       └── mqtt_transport.py    # Transport MQTT réel pour la logique Moonraker déjà réelle de ce bridge
 ├── tests/
 │   ├── test_artifacts.py         # Tests d'évidence slicer (sans E/S imprimante)
-│   └── test_moonraker.py        # Tests d'analyse de disponibilité et de portail de sécurité
+│   ├── test_profiles.py         # La correspondance de profil refuse toujours l'exécution
+│   ├── test_moonraker.py        # Tests d'analyse de disponibilité et de portail de sécurité
+│   └── test_mqtt_transport.py   # Tests de forme commande/état MQTT contre un client broker simulé
 ├── tools/
 │   ├── build_test.py            # Compilateur + lanceur de tests non mutant (build-test.bat/.sh)
 │   ├── inspect_print_artifact.py # CLI JSON d'évidence locale de l'artefact
 │   └── bump_version.py          # Synchronise pyproject.toml, manifeste et CHANGELOG.md
+├── docs/
+│   ├── BRIDGE_GUIDE.md                        # Portée, plateformes compatibles, scripts, portail d'acceptation matérielle
+│   ├── PRINT_PROFILE_BOUNDARY.md              # Ce que signifie la preuve de compatibilité de profil face à l'autorisation d'impression
+│   └── SLICER_ARTIFACT_COMPATIBILITY.md       # Quels formats d'artefact slicer ce bridge peut lire comme preuve
+├── images/
+│   └── HYDRA_UMC_BANNER.svg     # Bannière du README
 ├── build-test.bat / build-test.sh  # Valide uniquement, ne modifie jamais le dépôt
 ├── build.bat / build.sh            # Valide puis, si succès, incrémente version + CHANGELOG
 ├── pyproject.toml               # Métadonnées du paquet ; dépend de HYDRA-UMC-SDK (git)
