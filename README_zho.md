@@ -89,6 +89,8 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 ├── tools/
 │   ├── build_test.py            # 非变更式编译 + 测试运行器 (build-test.bat/.sh)
 │   ├── inspect_print_artifact.py # 本地产物证据 JSON CLI
+│   ├── assess_print_profile.py  # 离线配置文件与产物比对 CLI;从不授权执行
+│   ├── ci_validate.py           # 无依赖、非破坏性的CI基线检查 (由 .github/workflows/ci.yml 使用)
 │   └── bump_version.py          # 同步 pyproject.toml、清单和 CHANGELOG.md
 ├── docs/
 │   ├── BRIDGE_GUIDE.md                        # 范围、兼容平台、脚本、硬件验收门控

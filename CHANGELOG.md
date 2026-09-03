@@ -71,7 +71,7 @@ GPL-3.0-or-later - see LICENSE
 - 9 new/updated regression tests against a real path-aware fixture HTTP
   server - 25/25 tests passing.
 
-## [0.0.7] - 2026-08-30
+## [0.0.7]
 
 - Added `docs/BRIDGE_GUIDE.md`, complementing the slicer and profile-boundary
   documents with software compatibility, scripts and hardware acceptance flow.
@@ -81,7 +81,7 @@ GPL-3.0-or-later - see LICENSE
 - Added CLI contract coverage; the full suite now has seventeen tests.
 - Synchronized package metadata, ecosystem manifest and all seven README files.
 
-## [0.0.6] - 2026-08-30
+## [0.0.6]
 
 - Added `PrintProfile` and `assess_artifact_profile()` for declared local
   artifact/profile compatibility evidence.
@@ -91,7 +91,7 @@ GPL-3.0-or-later - see LICENSE
   profile evidence; the full suite now has sixteen tests.
 - Synchronized package metadata, ecosystem manifest and all seven README files.
 
-## [0.0.5] - 2026-08-30
+## [0.0.5]
 
 - Added a safe, local artifact-inspection lane for ordinary FDM G-code from
   OrcaSlicer, Ultimaker Cura, PrusaSlicer, Bambu Studio and other slicers.
@@ -104,14 +104,14 @@ GPL-3.0-or-later - see LICENSE
   the full local suite now has thirteen tests.
 - Synchronized package metadata, ecosystem manifest and all seven README files.
 
-## [0.0.4] - 2026-08-29
+## [0.0.4]
 
 - Synchronized the English README and all six translated README files with the
   released readiness-probe scope, current version and seven-test coverage.
 - Successful incremental build: synchronized package metadata and
   `hydra-umc.project.json`.
 
-## [0.0.3] - 2026-08-29
+## [0.0.3]
 
 - Normalized surrounding whitespace in a configured Moonraker base URL before
   opening the documented readiness request.
@@ -120,7 +120,7 @@ GPL-3.0-or-later - see LICENSE
 - Successful incremental build: synchronized package metadata and
   `hydra-umc.project.json`.
 
-## [0.0.2] - 2026-08-29
+## [0.0.2]
 
 - Added a deterministic local HTTP integration test for Moonraker's read-only
   `GET /printer/info` readiness endpoint; it verifies the endpoint path and
