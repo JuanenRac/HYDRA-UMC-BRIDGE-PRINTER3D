@@ -54,8 +54,7 @@ class MoonrakerProbe:
         # "no override, defer to klippy_state" (standby/complete/cancelled
         # all mean the print head is free); RUNNING/HOLDING/FAULT are real
         # overrides that must win over a bare klippy_state=ready reading.
-        # PRINT-02 (found in an ecosystem-wide software-improvements
-        # audit): a real Moonraker `objects/query` response wraps its own
+        # PRINT-02: a real Moonraker `objects/query` response wraps its own
         # `status` object inside a `result` envelope
         # (`{"result": {"status": {"print_stats": {...}}}}`,
         # moonraker.readthedocs.io/en/latest/external_api/introduction/) -
@@ -212,8 +211,7 @@ class MoonrakerJobControl:
         filename: str,
         timeout_seconds: float = 5.0,
     ) -> JobCommandResult:
-        # PRINT-01 (found in an ecosystem-wide software-improvements
-        # audit): evaluate_job() - the shared gate PrinterBridge.plan()
+        # PRINT-01: evaluate_job() - the shared gate PrinterBridge.plan()
         # calls - deliberately always allows JobPhase.ABORT, "so that an
         # external integration can request a controlled stop" (see that
         # function's own docstring in HYDRA-UMC-SDK). That rule is correct
