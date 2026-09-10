@@ -130,8 +130,7 @@ class PrinterMqttBridgeTests(unittest.TestCase):
         self.assertFalse(result["allowed"])
 
     def test_start_refuses_a_non_process_phase_job_regression_for_print_01(self):
-        # PRINT-01 (found in an ecosystem-wide software-improvements
-        # audit, P0): a cmd/start request carrying anything other than a
+        # PRINT-01 (P0): a cmd/start request carrying anything other than a
         # PROCESS-phase job - ABORT in particular - must never reach
         # Moonraker's own /printer/print/start.
         request = {"job": job_to_dict(job(phase=JobPhase.ABORT)), "filename": "part.gcode"}
@@ -186,8 +185,7 @@ class RunForeverTests(unittest.TestCase):
 
 class ConnectWithRetryTests(unittest.TestCase):
     """connect_with_retry() is pure - no real paho-mqtt/broker needed to
-    prove the real startup-race tolerance an ecosystem-wide software
-    audit found missing here (this bridge's process used to die outright
+    prove the real startup-race tolerance that was missing here (this bridge's process used to die outright
     if it started before HYDRA-UMC-MQTT-BROKER was listening yet)."""
 
     def test_succeeds_on_the_first_try_without_sleeping(self):

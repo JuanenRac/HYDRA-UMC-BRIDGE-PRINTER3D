@@ -30,8 +30,7 @@ class MoonrakerFixtureHandler(BaseHTTPRequestHandler):
     def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler requires this name.
         type(self).requested_paths.append(self.path)
         if self.path.startswith("/printer/objects/query"):
-            # PRINT-02 regression (found in an ecosystem-wide
-            # software-improvements audit): the real Moonraker response
+            # PRINT-02 regression: the real Moonraker response
             # wraps `status` inside a `result` envelope - every fixture in
             # this file used to omit that envelope, which meant the whole
             # suite never actually exercised the real wire shape and
@@ -168,8 +167,7 @@ class MoonrakerTests(unittest.TestCase):
         self.assertIn("print_stats", status.message)
 
     def test_parse_print_stats_unwraps_the_real_result_envelope_regression_for_print_02(self):
-        # PRINT-02 (found in an ecosystem-wide software-improvements
-        # audit): a real Moonraker objects/query response wraps its own
+        # PRINT-02: a real Moonraker objects/query response wraps its own
         # `status` inside a `result` envelope
         # (moonraker.readthedocs.io/en/latest/external_api/introduction/).
         # Direct unit call (no HTTP fixture layer) against exactly that
@@ -229,14 +227,13 @@ class MoonrakerJobControlTests(unittest.TestCase):
         self.assertIn("/printer/print/start?filename=part.gcode", MoonrakerFixtureHandler.requested_paths)
 
     def test_start_job_refuses_an_abort_phase_job_regression_for_print_01(self):
-        # PRINT-01 (found in an ecosystem-wide software-improvements
-        # audit, P0): evaluate_job() (the shared gate PrinterBridge.plan()
+        # PRINT-01 (P0): evaluate_job() (the shared gate PrinterBridge.plan()
         # calls) deliberately always allows JobPhase.ABORT so a bridge's
         # own STOP-class action (cancel_job) can always run - but reused
         # verbatim inside start_job(), that meant an ABORT-phase job
         # sailed through as allowed=True and this function then actually
         # started a NEW print. Reproduced with both a fully faulted
-        # printer/cell (the exact audit repro) and an otherwise-idle,
+        # printer/cell (the exact repro) and an otherwise-idle,
         # ready one - ABORT must never reach print/start regardless of
         # machine state.
         faulted = PrinterStatus(MachineState.FAULT, "printer fault")
