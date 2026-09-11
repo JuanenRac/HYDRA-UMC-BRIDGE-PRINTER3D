@@ -22,6 +22,10 @@ GPL-3.0-or-later - see LICENSE
 
 ---
 
+> **Comprobación de honestidad - qué funciona realmente hoy:** la sonda de disponibilidad Moonraker y la puerta de seguridad (`moonraker.py` con `MoonrakerProbe`/`PrinterBridge`, que hace pasar cada trabajo por el propio `evaluate_job()` de `HYDRA-UMC-SDK`), los comandos de trabajo reales controlados por el SDK (`MoonrakerJobControl` de iniciar/pausar/reanudar/cancelar), la evidencia de solo lectura de artefactos/perfiles (`artifacts.py`, `profiles.py`), y el puente de comandos/estado MQTT (`mqtt_transport.py`) son reales y están cubiertos por 56 casos `unittest` que pasan (`python tools/build_test.py`). Los tests orientados a Moonraker corren contra un `ThreadingHTTPServer` local real que hace de sustituto de la propia API REST de Moonraker - no una impresora real -, y la lógica propia de `connect_with_retry()`/enrutado de mensajes de la capa MQTT se prueba sin abrir nunca una conexión o broker `paho-mqtt` real. Como ya indica el README más abajo, este bridge todavía no se ha probado contra una impresora, hotend o robot reales. El streaming de G-code en bruto deliberadamente no está implementado - solo se puede iniciar/pausar/reanudar/cancelar por nombre un archivo ya subido y ya laminado. Ver "Estado actual y próximos pasos" más abajo, que ya lo dice con claridad, y `CHANGELOG.md` para lo que se ha entregado exactamente hasta ahora.
+
+---
+
 ## 1. 🛠️ VISIÓN TÉCNICA GENERAL
 
 **HYDRA-UMC-BRIDGE-PRINTER3D** es el coordinador de alto nivel para software abierto de impresión 3D (Moonraker/Klipper) y auxiliares robóticos HYDRA-UMC. También reconoce artefactos locales de slicer en modo de solo lectura. El firmware nativo de la impresora sigue siendo responsable en todo momento del movimiento, los calefactores, la protección térmica y los enclavamientos de máquina; este puente solo lee la disponibilidad, registra evidencia del artefacto y coordina auxiliares a su alrededor.
