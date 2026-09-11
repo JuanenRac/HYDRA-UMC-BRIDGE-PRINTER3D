@@ -22,6 +22,10 @@ GPL-3.0-or-later - see LICENSE
 
 ---
 
+> **Honesty check - what actually runs today:** the Moonraker readiness probe and safety gate (`moonraker.py`'s `MoonrakerProbe`/`PrinterBridge`, funneling every job through `HYDRA-UMC-SDK`'s own `evaluate_job()`), the real SDK-gated job commands (`MoonrakerJobControl`'s start/pause/resume/cancel), the read-only artifact/profile evidence (`artifacts.py`, `profiles.py`), and the MQTT command/status bridge (`mqtt_transport.py`) are real and covered by 56 passing `unittest` cases (`python tools/build_test.py`). The Moonraker-facing tests run against a real local `ThreadingHTTPServer` fixture standing in for Moonraker's own REST API - not a real printer - and the MQTT layer's own `connect_with_retry()`/message-routing logic is tested without ever opening a real `paho-mqtt` connection or broker. As the README already states below, this bridge has not been exercised against a real printer, hotend or robot yet. Raw G-code streaming is deliberately not implemented - only an already-uploaded, already-sliced file can be started/paused/resumed/cancelled by name. See "Current Status & Next Steps" below, which already says this plainly, and `CHANGELOG.md` for exactly what has shipped so far.
+
+---
+
 ## 1. 🛠️ TECHNICAL OVERVIEW
 
 **HYDRA-UMC-BRIDGE-PRINTER3D** is the high-level coordinator for open 3D-printing software (Moonraker/Klipper) and HYDRA-UMC robotic auxiliaries. It also recognizes local slicer artifacts read-only, and can now send real, SDK-gated job commands (start/pause/resume/cancel an already-uploaded, already-sliced file) through Moonraker's own REST API. Native printer firmware remains responsible for motion, heaters, thermal protection and machine interlocks at all times — this bridge never streams raw G-code and never replaces that authority; it only reads readiness, records artifact evidence, sends already-safe job-level commands and coordinates auxiliaries around it.

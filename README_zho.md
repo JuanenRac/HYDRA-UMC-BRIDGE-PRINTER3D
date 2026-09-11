@@ -22,6 +22,10 @@ GPL-3.0-or-later - see LICENSE
 
 ---
 
+> **诚实检查——今天真正可运行的部分：** Moonraker 就绪探测与安全门控（`moonraker.py` 中的 `MoonrakerProbe`/`PrinterBridge`，每个任务都会经过 `HYDRA-UMC-SDK` 自身真正的 `evaluate_job()`）、真正的由 SDK 门控的任务命令（`MoonrakerJobControl` 的启动/暂停/恢复/取消）、只读的产物/配置文件证据（`artifacts.py`、`profiles.py`），以及 MQTT 命令/状态桥接（`mqtt_transport.py`）都是真实的，并由 56 个通过的 `unittest` 用例覆盖（`python tools/build_test.py`）。面向 Moonraker 的测试是针对一个真实的本地 `ThreadingHTTPServer` 运行的，用来替代真正的 Moonraker REST API——而不是真实的打印机——而 MQTT 层自身的 `connect_with_retry()`/消息路由逻辑在测试中从未真正打开过 `paho-mqtt` 连接或 broker。正如下文 README 已经说明的那样，该桥接尚未针对真实的打印机、热端或机器人进行过验证。原始 G-code 流式传输被有意地没有实现——只能按名称启动/暂停/恢复/取消一个已上传、已切片好的文件。详见下文的"当前状态与后续步骤"（已经如实说明了这一点），以及 `CHANGELOG.md` 中目前具体已交付的内容。
+
+---
+
 ## 1. 🛠️ 技术概览
 
 **HYDRA-UMC-BRIDGE-PRINTER3D** 是开源 3D 打印软件(Moonraker/Klipper)与 HYDRA-UMC 机器人辅助设备之间的高层协调器。它还会以只读方式识别本地切片软件产物。打印机的原生固件始终负责运动、加热器、热保护和机器联锁——本桥接只读取就绪状态、记录产物证据并围绕它协调辅助设备。
