@@ -109,12 +109,26 @@ class PrinterMqttBridge:
 
         return self._probe.fetch(self._base_url)
 
-    def handle_message(self, topic: str, payload: bytes) -> list[MqttPublish]:
+    def handle_message(self, topic: str, payload: bytes, *, retained: bool = False) -> list[MqttPublish]:
         """Route one real inbound MQTT message. An unrecognised `cmd/`
         sub-topic (this bridge subscribes to `cmd/#`, a wildcard) is
         silently ignored, never an error - a future sibling topic this
-        version does not know about yet must never crash the message loop."""
+        version does not know about yet must never crash the message loop.
 
+        H051: `retained` is True when the broker delivered this message
+        because of the MQTT retain flag, not because a client just
+        published it live. `on_connect()`'s own `subscribe("cmd/#")`
+        replays every currently-retained message on that wildcard the
+        instant it (re)subscribes - which happens on every reconnect, not
+        just once at startup - so a retained `cmd/start`/`cmd/resume`
+        would otherwise re-start or re-resume a real print job with no
+        new operator intent behind it, every single time this bridge
+        reconnects. A retained delivery is always ignored here, before it
+        ever reaches a real command.
+        """
+
+        if retained:
+            return []
         if not topic.startswith(TOPIC_PREFIX):
             return []
         suffix = topic[len(TOPIC_PREFIX) :]
@@ -199,12 +213,25 @@ def run_forever(
     *,
     max_connect_attempts: int = 5,
     connect_retry_delay_seconds: float = 2.0,
+    username: str | None = None,
+    password: str | None = None,
 ) -> None:
     """Connect to a real HYDRA-UMC-MQTT-BROKER and dispatch forever.
 
     The only place this module imports paho-mqtt - lazily, so the rest of
     this module (and every test) works on a host without it installed.
+
+    H050: `username`/`password` are optional (matching
+    HYDRA-UMC-MQTT-BROKER's own `MQTT_AUTH_JSON` authentication, which is
+    itself opt-in) - a broker deployed with authentication required had no
+    way to be reached from here at all before this. `password` is only
+    meaningful together with `username`; a caller supplying `password`
+    alone almost certainly meant to set both, so that combination is
+    rejected rather than silently connecting unauthenticated.
     """
+
+    if password is not None and username is None:
+        raise ValueError("password was given without a username - MQTT credentials need both")
 
     try:
         import paho.mqtt.client as mqtt  # type: ignore[import-untyped]
@@ -218,10 +245,12 @@ def run_forever(
         client.subscribe(f"{TOPIC_PREFIX}cmd/#")  # type: ignore[attr-defined]
 
     def on_message(client: object, userdata: object, message: object) -> None:
-        for publish in bridge.handle_message(message.topic, message.payload):  # type: ignore[attr-defined]
+        for publish in bridge.handle_message(message.topic, message.payload, retained=message.retain):  # type: ignore[attr-defined]
             client.publish(publish.topic, publish.payload, retain=publish.retain)  # type: ignore[attr-defined]
 
     client = mqtt.Client(client_id=client_id)
+    if username is not None:
+        client.username_pw_set(username, password)
     client.on_connect = on_connect
     client.on_message = on_message
     connect_with_retry(

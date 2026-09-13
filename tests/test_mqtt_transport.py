@@ -222,6 +222,126 @@ class RunForeverTests(unittest.TestCase):
             run_forever(bridge, "127.0.0.1")
         self.assertIn("paho-mqtt is not installed", str(context.exception))
 
+    def test_password_without_username_is_rejected_before_ever_touching_paho_mqtt(self):
+        # H050: catches the most likely real misconfiguration (a password
+        # set without a username) as a real, immediate error - never a
+        # silent unauthenticated connection to a broker that actually
+        # requires MQTT_AUTH_JSON credentials.
+        from hydra_umc_bridge_printer3d import run_forever
+
+        bridge = PrinterMqttBridge("http://127.0.0.1:1", lambda: CellState.READY)
+        with self.assertRaises(ValueError) as context:
+            run_forever(bridge, "127.0.0.1", password="secret")
+        self.assertIn("password was given without a username", str(context.exception))
+
+    def test_configures_broker_credentials_when_given(self):
+        # H050: HYDRA-UMC-MQTT-BROKER's own MQTT_AUTH_JSON authentication
+        # is real but this bridge previously had no way at all to supply
+        # a username/password to reach a broker that requires it.
+        try:
+            import paho.mqtt.client as mqtt
+        except ImportError:
+            self.skipTest("paho-mqtt is not installed in this environment - nothing to prove here")
+        from unittest.mock import MagicMock, patch
+
+        from hydra_umc_bridge_printer3d import run_forever
+
+        bridge = PrinterMqttBridge("http://127.0.0.1:1", lambda: CellState.READY)
+        fake_client = MagicMock()
+        with patch.object(mqtt, "Client", return_value=fake_client):
+            run_forever(bridge, "127.0.0.1", username="hydra-umc-bridge-printer3d", password="s3cret")
+        fake_client.username_pw_set.assert_called_once_with("hydra-umc-bridge-printer3d", "s3cret")
+
+    def test_does_not_touch_credentials_when_none_are_given(self):
+        # Authentication stays opt-in on the client side too, matching the
+        # broker's own opt-in MQTT_AUTH_JSON.
+        try:
+            import paho.mqtt.client as mqtt
+        except ImportError:
+            self.skipTest("paho-mqtt is not installed in this environment - nothing to prove here")
+        from unittest.mock import MagicMock, patch
+
+        from hydra_umc_bridge_printer3d import run_forever
+
+        bridge = PrinterMqttBridge("http://127.0.0.1:1", lambda: CellState.READY)
+        fake_client = MagicMock()
+        with patch.object(mqtt, "Client", return_value=fake_client):
+            run_forever(bridge, "127.0.0.1")
+        fake_client.username_pw_set.assert_not_called()
+
+    def test_on_message_passes_the_real_retain_flag_through_to_handle_message(self):
+        # H051 end to end: a real paho-mqtt MQTTMessage's own `.retain`
+        # flag must reach handle_message(), or every retained-command
+        # protection below would be dead code in the one real path that
+        # actually needs it.
+        try:
+            import paho.mqtt.client as mqtt
+        except ImportError:
+            self.skipTest("paho-mqtt is not installed in this environment - nothing to prove here")
+        from unittest.mock import MagicMock, patch
+
+        from hydra_umc_bridge_printer3d import run_forever
+
+        bridge = PrinterMqttBridge("http://127.0.0.1:1", lambda: CellState.READY)
+        fake_client = MagicMock()
+        with patch.object(mqtt, "Client", return_value=fake_client):
+            run_forever(bridge, "127.0.0.1")
+        on_message = fake_client.on_message
+        message = MagicMock(topic=f"{TOPIC_PREFIX}cmd/pause", payload=b"", retain=True)
+        on_message(fake_client, None, message)
+        fake_client.publish.assert_not_called()
+
+
+class RetainedMessageTests(unittest.TestCase):
+    """H051: a real broker replays every currently-retained message on the
+    subscribed wildcard immediately upon (re)subscribe - which happens on
+    every reconnect, not just once at startup. `cmd/start`/`cmd/resume` in
+    particular would otherwise re-start or re-resume a real print job with
+    no new operator intent behind it, so a retained delivery must never
+    reach a real action on any of this bridge's `cmd/*` topics."""
+
+    def bridge(self, cell_state=CellState.READY):
+        return PrinterMqttBridge(self.base_url, lambda: cell_state)
+
+    @classmethod
+    def setUpClass(cls):
+        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), MoonrakerFixtureHandler)
+        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
+        cls.thread.start()
+        cls.base_url = f"http://127.0.0.1:{cls.server.server_address[1]}"
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.thread.join()
+        cls.server.server_close()
+
+    def setUp(self):
+        MoonrakerFixtureHandler.requested_paths = []
+        MoonrakerFixtureHandler.print_stats_state = "paused"  # -> HOLDING, so resume WOULD otherwise succeed
+
+    def test_a_retained_start_never_reaches_moonraker(self):
+        request = {"job": job_to_dict(job(phase=JobPhase.PROCESS)), "filename": "part.gcode"}
+        publishes = self.bridge().handle_message(
+            f"{TOPIC_PREFIX}cmd/start", json.dumps(request).encode("utf-8"), retained=True
+        )
+        self.assertEqual(publishes, [])
+        self.assertFalse(any(p.startswith("/printer/print/start") for p in MoonrakerFixtureHandler.requested_paths))
+
+    def test_a_retained_resume_never_reaches_moonraker(self):
+        publishes = self.bridge().handle_message(f"{TOPIC_PREFIX}cmd/resume", b"", retained=True)
+        self.assertEqual(publishes, [])
+        self.assertFalse(any(p.startswith("/printer/print/resume") for p in MoonrakerFixtureHandler.requested_paths))
+
+    def test_a_retained_cancel_never_reaches_moonraker(self):
+        publishes = self.bridge().handle_message(f"{TOPIC_PREFIX}cmd/cancel", b"", retained=True)
+        self.assertEqual(publishes, [])
+        self.assertEqual(MoonrakerFixtureHandler.requested_paths, [])
+
+    def test_a_live_non_retained_resume_is_unaffected(self):
+        publishes = self.bridge().handle_message(f"{TOPIC_PREFIX}cmd/resume", b"", retained=False)
+        self.assertTrue(json.loads(publishes[0].payload)["allowed"])
+
 
 class ConnectWithRetryTests(unittest.TestCase):
     """connect_with_retry() is pure - no real paho-mqtt/broker needed to
