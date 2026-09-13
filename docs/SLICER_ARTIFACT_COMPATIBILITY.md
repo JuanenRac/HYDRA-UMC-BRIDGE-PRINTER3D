@@ -8,7 +8,9 @@ GPL-3.0-or-later - see LICENSE
 
 ## Purpose
 
-HYDRA-UMC-BRIDGE-PRINTER3D accepts local slicer output as **read-only evidence**. It does not launch a slicer, alter a project, unpack a package, parse or execute G-code, upload a job, or contact a printer. Moonraker remains a separate read-only readiness channel.
+This document covers only artifact inspection (`inspect_artifact()`, `assess_artifact_profile()` - see [PRINT_PROFILE_BOUNDARY.md](PRINT_PROFILE_BOUNDARY.md)). That module accepts local slicer output as **read-only evidence**: it does not launch a slicer, alter a project, unpack a package, parse or execute G-code, or open any network connection at all - it never contacts Moonraker or a printer.
+
+Printer command dispatch is a genuinely separate, already-implemented module (`MoonrakerJobControl` in `moonraker.py`, reached over MQTT via `mqtt_transport.py`'s `cmd/start`/`cmd/pause`/`cmd/resume`/`cmd/cancel`). It really does send start/pause/resume/cancel to Moonraker's own REST API, gated by this ecosystem's shared `evaluate_job()` decision plus this bridge's own phase/cell/printer-state checks - see that module's own docstring for the exact boundary. It is not future work, and it does not currently consult the artifact evidence described here at all: a `cmd/start` request's `filename` is accepted on its own terms, independent of whatever `assess_artifact_profile()` would say about it.
 
 This boundary lets the ecosystem record the identity and origin hint of a proposed print while native printer firmware retains motion, heaters, thermal protection and all machine interlocks.
 
@@ -27,20 +29,26 @@ This boundary lets the ecosystem record the identity and origin hint of a propos
 
 An extension and a comment marker are evidence, not a trust decision. A known G-code comment never authorizes physical motion or a print start.
 
-## Safe flow
+## Safe flow (artifact inspection only)
 
 ```mermaid
 flowchart LR
     SLICER["Orca / Cura / Prusa / Bambu / Lychee / other"] --> FILE["Local artifact"]
     FILE --> INSPECT["inspect_artifact()<br/>name + bounded preview + SHA-256"]
     INSPECT --> EVIDENCE["Read-only evidence"]
-    EVIDENCE --> GATE["HYDRA-UMC-SDK<br/>separate safety gate"]
-    MOONRAKER["Moonraker /printer/info"] --> GATE
-    GATE -. "no upload, no G-code, no print start" .-> NATIVE["Native printer firmware"]
+    EVIDENCE --> PROFILE["assess_artifact_profile()<br/>execution_authorized always False"]
+    PROFILE -. "evidence alone never authorizes a print" .-> STOP["No command sent from here"]
 ```
 
-`tools/inspect_print_artifact.py <file>` prints only this evidence as JSON and exits non-zero for an unavailable or unknown artifact. It never opens a network connection.
+`tools/inspect_print_artifact.py <file>` prints only this evidence as JSON and exits non-zero for an unavailable or unknown artifact. It never opens a network connection. This diagram deliberately stops at "no command sent from here" - it says nothing about `MoonrakerJobControl` (see Purpose above), which is a separate module reached over MQTT, not from this evidence.
 
-## Future admission work
+## Scope: implemented vs. genuinely still open
 
-Before any future upload or printer-control capability, the bridge requires all of the following: a target-printer-specific profile, authenticated native-controller integration, an artifact-to-profile compatibility check, a reviewed allow-list of commands, physical safety validation, and a real hardware test. That future work is deliberately separate from this read-only compatibility layer.
+Three separate things get conflated too easily; naming the current state of each precisely:
+
+- **Read-only artifact inspection** (this document): fully implemented today, as described above.
+- **Real printer command dispatch** (`MoonrakerJobControl`, see Purpose above): also already implemented and unit-tested against this repo's own HTTP fixture - start/pause/resume/cancel genuinely reach Moonraker's REST API when its gate allows them. This is a live capability, not future work.
+- **Genuinely unimplemented today**: the artifact/profile evidence above is never consulted by that command dispatch - a mismatched or unidentified artifact does not (yet) block a `cmd/start` requested independently over MQTT. Also unimplemented: printer-model-specific nozzle/material/volume limits, and a reviewed command allow-list wider than the fixed four above (start/pause/resume/cancel).
+- **Genuinely unvalidated today**: every test of the command-dispatch path runs against this repo's own HTTP fixture, never a real Moonraker/Klipper instance or physical printer. A real hardware test remains required before relying on it operationally.
+
+This repository makes no promise of operational compatibility with every slicer or every printer model - only with the specific artifact kinds and comment markers listed in the table above, and only with a Moonraker/Klipper-driven printer for the command-dispatch module.
