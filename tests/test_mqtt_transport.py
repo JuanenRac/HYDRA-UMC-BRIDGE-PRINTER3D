@@ -36,7 +36,10 @@ class MoonrakerFixtureHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):  # noqa: N802
         type(self).requested_paths.append(self.path)
-        payload = b'"ok"'
+        # H007: real Moonraker confirms these endpoints with {"result":
+        # "ok"}, never a bare JSON string - see test_moonraker.py's own
+        # matching fixture comment.
+        payload = b'{"result": "ok"}'
         self.send_response(type(self).post_status_code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
@@ -165,6 +168,43 @@ class PrinterMqttBridgeTests(unittest.TestCase):
         decision = json.loads(publishes[0].payload)
         self.assertFalse(decision["allowed"])
         self.assertIn("malformed job payload", decision["reason"])
+
+    def test_resume_always_refreshes_and_never_reuses_a_stale_cached_status_regression_for_H005(self):
+        # H005: resume/start/cmd-job used to remember whatever status the
+        # last cmd/status (or the first gated command) had fetched, and
+        # reuse it indefinitely - a printer that changed state for real
+        # between two commands would still be gated against the earlier
+        # reading. bridge instances used to live for a whole process, so
+        # this reuses one bridge across two calls, exactly the case where
+        # the old cache would have masked a real state change.
+        bridge = self.bridge()
+        MoonrakerFixtureHandler.print_stats_state = "paused"  # -> HOLDING
+        first = json.loads(bridge.handle_message(f"{TOPIC_PREFIX}cmd/resume", b"")[0].payload)
+        self.assertTrue(first["allowed"], first)
+
+        # The real printer moves on (job finished/cancelled) before the
+        # next command - nothing to resume anymore.
+        MoonrakerFixtureHandler.print_stats_state = "standby"  # -> IDLE
+        second = json.loads(bridge.handle_message(f"{TOPIC_PREFIX}cmd/resume", b"")[0].payload)
+        self.assertFalse(second["allowed"], "a stale cached HOLDING status would wrongly allow this")
+        self.assertIn("not HOLDING", second["reason"])
+
+    def test_start_and_job_gate_also_always_refresh_regression_for_H005(self):
+        bridge = self.bridge()
+        # A first cmd/status warms nothing that should ever be trusted later.
+        bridge.handle_message(f"{TOPIC_PREFIX}cmd/status", b"")
+
+        MoonrakerFixtureHandler.print_stats_state = "printing"  # -> RUNNING, not free
+        request = {"job": job_to_dict(job(phase=JobPhase.PROCESS)), "filename": "part.gcode"}
+        start_result = json.loads(
+            bridge.handle_message(f"{TOPIC_PREFIX}cmd/start", json.dumps(request).encode("utf-8"))[0].payload
+        )
+        self.assertFalse(start_result["allowed"], "a printer that is now RUNNING must refuse a new start")
+
+        job_result = json.loads(
+            bridge.handle_message(f"{TOPIC_PREFIX}cmd/job", json.dumps(job_to_dict(job())).encode("utf-8"))[0].payload
+        )
+        self.assertFalse(job_result["allowed"], "cmd/job must reflect the same fresh RUNNING reading")
 
 
 class RunForeverTests(unittest.TestCase):

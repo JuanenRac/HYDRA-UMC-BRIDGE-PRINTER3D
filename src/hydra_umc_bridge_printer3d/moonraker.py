@@ -31,6 +31,17 @@ class MoonrakerProbe:
 
     @staticmethod
     def parse_info(payload: dict[str, object]) -> PrinterStatus:
+        # H006: valid JSON whose root is not an object (a bare array,
+        # string, number, bool or null) is a real possibility from any
+        # HTTP endpoint - a misconfigured proxy, an unrelated service on
+        # the same host/port - and payload.get(...) below would otherwise
+        # raise AttributeError on it, an exception _get()'s own except
+        # clause never catches (it only catches transport/JSON-decode
+        # errors, not "valid JSON, wrong shape"), crashing this call
+        # instead of failing closed like every other malformed-response
+        # case here already does.
+        if not isinstance(payload, dict):
+            return PrinterStatus(MachineState.OFFLINE, "Moonraker response is not an object")
         result = payload.get("result", payload)
         if not isinstance(result, dict):
             return PrinterStatus(MachineState.OFFLINE, "Moonraker response is not an object")
@@ -66,6 +77,12 @@ class MoonrakerProbe:
         # reported a perfectly healthy standby printer as OFFLINE with
         # "missing print_stats". Unwrap `result` first, exactly like
         # parse_info() already does, before reaching for `status`.
+        #
+        # H006: same real gap as parse_info() above - a non-object JSON
+        # root must fail closed here too, before payload.get(...) below
+        # can raise AttributeError on it.
+        if not isinstance(payload, dict):
+            return PrinterStatus(MachineState.OFFLINE, "Moonraker objects/query response is not an object")
         result = payload.get("result", payload)
         if not isinstance(result, dict):
             return PrinterStatus(MachineState.OFFLINE, "Moonraker objects/query response is not an object")
@@ -293,10 +310,34 @@ class MoonrakerJobControl:
         request = Request(endpoint, method="POST", data=b"")  # nosec B310: configured controller endpoint, restricted to HTTP(S) above
         try:
             with urlopen(request, timeout=timeout_seconds) as response:  # nosec B310
-                response.read(_MAX_INFO_BYTES + 1)
-                return JobCommandResult(True, True, "Moonraker accepted the command", response.status)
+                body = response.read(_MAX_INFO_BYTES + 1)
+                status_code = response.status
         except HTTPError as error:
             error.close()
             return JobCommandResult(True, False, f"Moonraker rejected the command: HTTP {error.code}", error.code)
         except (URLError, TimeoutError, OSError, ValueError) as error:
             return JobCommandResult(True, False, f"Moonraker unreachable: {error}")
+
+        # H007: an HTTP 200 alone is not Moonraker's own confirmation - a
+        # misconfigured proxy, captive portal, or unrelated service on the
+        # same host/port could all answer 200 with a body that never came
+        # from Moonraker at all. Moonraker's own documented contract for
+        # every one of these action endpoints is a JSON body of exactly
+        # {"result": "ok"} (moonraker.readthedocs.io/en/latest/external_api/
+        # printer/#print-management) - verify that contract instead of
+        # trusting the bare status code, the same real-response-shape
+        # discipline parse_info()/parse_print_stats() already apply to
+        # Moonraker's read endpoints.
+        if len(body) > _MAX_INFO_BYTES:
+            return JobCommandResult(
+                True, False, "Moonraker response exceeds the 64 KiB confirmation limit", status_code
+            )
+        try:
+            parsed_body = json.loads(body.decode("utf-8"))
+        except (ValueError, UnicodeDecodeError) as error:
+            return JobCommandResult(True, False, f"Moonraker response is not valid JSON: {error}", status_code)
+        if not (isinstance(parsed_body, dict) and parsed_body.get("result") == "ok"):
+            return JobCommandResult(
+                True, False, "Moonraker did not confirm the command (unexpected response body)", status_code
+            )
+        return JobCommandResult(True, True, "Moonraker accepted the command", status_code)

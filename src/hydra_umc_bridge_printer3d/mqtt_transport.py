@@ -95,14 +95,19 @@ class PrinterMqttBridge:
         self._probe = MoonrakerProbe()
         self._control = MoonrakerJobControl()
         self._gate = PrinterBridge()
-        self._last_status: PrinterStatus | None = None
 
     def refresh_status(self) -> PrinterStatus:
-        """Fetch real Moonraker readiness now and remember it for `start`/`resume`/`cmd/job`."""
+        """Fetch real Moonraker readiness right now - never cached.
 
-        status = self._probe.fetch(self._base_url)
-        self._last_status = status
-        return status
+        H005: this used to be remembered in `_last_status` and reused by
+        `start`/`resume`/`cmd/job` for as long as this bridge stayed up,
+        with no expiry - a printer that started printing (or finished a
+        pause) seconds after the last `cmd/status` fetch would still gate
+        against the stale reading. Every command that needs readiness now
+        calls this immediately before deciding, exactly like CNC/LASER's
+        own per-command refresh."""
+
+        return self._probe.fetch(self._base_url)
 
     def handle_message(self, topic: str, payload: bytes) -> list[MqttPublish]:
         """Route one real inbound MQTT message. An unrecognised `cmd/`
@@ -121,7 +126,7 @@ class PrinterMqttBridge:
         if suffix == "cmd/cancel":
             return [_result_payload(f"{TOPIC_PREFIX}cmd/cancel/result", self._control.cancel_job(self._base_url))]
         if suffix == "cmd/resume":
-            status = self._last_status or self.refresh_status()
+            status = self.refresh_status()
             result = self._control.resume_job(self._cell_state(), status, self._base_url)
             return [_result_payload(f"{TOPIC_PREFIX}cmd/resume/result", result)]
         if suffix == "cmd/start":
@@ -141,7 +146,7 @@ class PrinterMqttBridge:
         except (json.JSONDecodeError, BridgeError, KeyError, ValueError, UnicodeDecodeError) as error:
             result = {"allowed": False, "executed": False, "reason": f"malformed start payload: {error}", "http_status": None}
             return MqttPublish(result_topic, json.dumps(result))
-        status = self._last_status or self.refresh_status()
+        status = self.refresh_status()
         result = self._control.start_job(job, self._cell_state(), status, self._base_url, filename)
         return _result_payload(result_topic, result)
 
@@ -151,7 +156,7 @@ class PrinterMqttBridge:
         except (json.JSONDecodeError, BridgeError, UnicodeDecodeError) as error:
             decision = {"allowed": False, "reason": f"malformed job payload: {error}"}
             return MqttPublish(f"{TOPIC_PREFIX}cmd/job/result", json.dumps(decision))
-        status = self._last_status or self.refresh_status()
+        status = self.refresh_status()
         decision = self._gate.plan(job, self._cell_state(), status)
         return MqttPublish(f"{TOPIC_PREFIX}cmd/job/result", json.dumps(decision_to_dict(decision)))
 
