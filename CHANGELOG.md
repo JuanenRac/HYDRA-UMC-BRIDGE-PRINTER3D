@@ -40,6 +40,17 @@ GPL-3.0-or-later - see LICENSE
   200 with an unexpected body" case H007 needed to exercise. Replaced
   with an explicit `is not None` check everywhere the fixture applies an
   override.
+- **H067 (docs):** `SLICER_ARTIFACT_COMPATIBILITY.md` and
+  `PRINT_PROFILE_BOUNDARY.md` described "no printer contact" and
+  "future...printer-control capability" as if that applied to the whole
+  bridge, when `MoonrakerJobControl` already sends real, gated
+  start/pause/resume/cancel commands to Moonraker today. Reworded both to
+  scope those claims to artifact/profile inspection specifically, link to
+  the real (separate, already-implemented, already-gated) command-dispatch
+  module by name, and spell out precisely what remains genuinely
+  unimplemented (profile compatibility never gates a start) versus merely
+  unvalidated against real hardware (every test of that path runs against
+  this repo's own HTTP fixture, never a physical printer).
 
 ## [0.1.1] - PRINT-01/PRINT-02: real phase gating and a real envelope fix
 
