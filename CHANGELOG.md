@@ -6,6 +6,41 @@ GPL-3.0-or-later - see LICENSE
 
 # Changelog
 
+## [0.1.2] - H005/H006/H007: stale gate reuse, non-object JSON roots, unconfirmed POSTs
+
+- **H005:** `refresh_status()` cached its result in `_last_status` with no
+  expiry, and `cmd/resume`, `cmd/start` and `cmd/job` all reused that stale
+  reading (`self._last_status or self.refresh_status()`) instead of
+  fetching current readiness. A printer that changed state seconds after
+  the last `cmd/status` fetch was still gated against the old reading.
+  Fixed: every command now calls `refresh_status()` unconditionally right
+  before deciding, exactly like CNC/LASER's own per-command refresh; the
+  cache field is gone.
+- **H006:** `parse_info()` and `parse_print_stats()` called `payload.get(...)`
+  assuming a JSON object root. Valid JSON whose root is a bare array,
+  string, number, bool or null - a real possibility from a misconfigured
+  proxy or an unrelated service on the same host/port - raised
+  `AttributeError`, an exception `_get()`'s own except clause never
+  catches (it only catches transport/JSON-decode errors, not "valid JSON,
+  wrong shape"), crashing the call instead of failing closed like every
+  other malformed-response case already does. Fixed: both now check
+  `isinstance(payload, dict)` before touching it.
+- **H007:** `MoonrakerJobControl`'s POST-based job commands treated a bare
+  HTTP 200 as Moonraker's own confirmation. A misconfigured proxy,
+  captive portal, or unrelated service on the same host/port could all
+  answer 200 with a body that never came from Moonraker at all. Fixed:
+  the response body is now parsed and checked against Moonraker's
+  documented `{"result": "ok"}` contract for these endpoints before the
+  command is reported as accepted - the same real-response-shape
+  discipline `parse_info()`/`parse_print_stats()` already apply to
+  Moonraker's read endpoints.
+- Fixed a latent bug in this suite's own HTTP fixture: `override or
+  default` silently discarded a deliberately-empty (`b""`) override
+  response body because it is falsy in Python, hiding exactly the "HTTP
+  200 with an unexpected body" case H007 needed to exercise. Replaced
+  with an explicit `is not None` check everywhere the fixture applies an
+  override.
+
 ## [0.1.1] - PRINT-01/PRINT-02: real phase gating and a real envelope fix
 
 - **PRINT-01 (P0):** `evaluate_job()` (the shared gate `PrinterBridge.plan()` calls)

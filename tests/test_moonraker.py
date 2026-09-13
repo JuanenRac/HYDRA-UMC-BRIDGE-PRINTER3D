@@ -36,11 +36,16 @@ class MoonrakerFixtureHandler(BaseHTTPRequestHandler):
             # suite never actually exercised the real wire shape and
             # missed a real parsing bug hiding behind it (see moonraker.py's
             # own parse_print_stats() comment).
-            payload = type(self).print_stats_response_override or json.dumps(
+            # `is not None`, never a plain `or` - see do_POST()'s own
+            # comment below on why an overridden EMPTY body must not be
+            # silently discarded for being falsy.
+            override = type(self).print_stats_response_override
+            payload = override if override is not None else json.dumps(
                 {"result": {"status": {"print_stats": {"state": "standby"}}}}
             ).encode("utf-8")
         else:
-            payload = type(self).info_response_override or json.dumps(
+            override = type(self).info_response_override
+            payload = override if override is not None else json.dumps(
                 {"state": "ready", "state_message": "Printer is ready"}
             ).encode("utf-8")
         self.send_response(200)
@@ -49,9 +54,24 @@ class MoonrakerFixtureHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(payload)
 
+    post_response_override: bytes | None = None
+
     def do_POST(self):  # noqa: N802 - BaseHTTPRequestHandler requires this name.
         type(self).requested_paths.append(self.path)
-        payload = b'"ok"'
+        # H007 regression: real Moonraker confirms these action endpoints
+        # with a JSON object {"result": "ok"}, never a bare JSON string -
+        # this fixture used to send `b'"ok"'` (a bare string), which meant
+        # the whole suite never actually exercised the real confirmation
+        # shape and would have hidden the exact gap H007 closed.
+        #
+        # `is not None`, never a plain `or` - an overridden EMPTY body
+        # (b"") is itself a real, deliberate test case (H007's own "an
+        # HTTP 200 with an unexpected body" coverage) and is falsy, so
+        # `override or default` would silently discard it and send the
+        # real success body instead - the exact bug this comment is
+        # warning against, found live while writing that very test.
+        override = type(self).post_response_override
+        payload = override if override is not None else b'{"result": "ok"}'
         self.send_response(type(self).post_status_code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
@@ -195,6 +215,35 @@ class MoonrakerTests(unittest.TestCase):
         self.assertEqual(status.state, MachineState.OFFLINE)
         self.assertIn("64 KiB", status.message)
 
+    def test_a_non_object_json_root_fails_closed_instead_of_crashing_regression_for_H006(self):
+        # H006: valid JSON whose root is not an object (a bare array,
+        # string, number, bool or null) is a real possibility from any
+        # HTTP endpoint - payload.get(...) would otherwise raise
+        # AttributeError, an exception _get()'s own except clause never
+        # caught (it only catches transport/JSON-decode errors, not
+        # "valid JSON, wrong shape"), crashing fetch() outright.
+        for override in (b"[1, 2, 3]", b'"just a string"', b"42", b"true", b"null"):
+            with self.subTest(override=override):
+                MoonrakerFixtureHandler.info_response_override = override
+                status = MoonrakerProbe().fetch(f"http://127.0.0.1:{self.server.server_port}")
+                self.assertEqual(status.state, MachineState.OFFLINE)
+
+    def test_a_non_object_json_root_in_print_stats_fails_closed_regression_for_H006(self):
+        for override in (b"[1, 2, 3]", b'"just a string"', b"42"):
+            with self.subTest(override=override):
+                MoonrakerFixtureHandler.print_stats_response_override = override
+                status = MoonrakerProbe().fetch(f"http://127.0.0.1:{self.server.server_port}")
+                self.assertEqual(status.state, MachineState.OFFLINE)
+
+    def test_parse_info_and_parse_print_stats_reject_a_non_dict_payload_directly_regression_for_H006(self):
+        # Direct unit call (no HTTP fixture layer), same style as PRINT-02's
+        # own regression test above - proves the guard lives in the parser
+        # itself, not just behind the fixture's own JSON encoding.
+        for payload in ([1, 2, 3], "just a string", 42, True, None):
+            with self.subTest(payload=payload):
+                self.assertEqual(MoonrakerProbe.parse_info(payload).state, MachineState.OFFLINE)
+                self.assertEqual(MoonrakerProbe.parse_print_stats(payload).state, MachineState.OFFLINE)
+
 
 class MoonrakerJobControlTests(unittest.TestCase):
     """Real POST-based job commands against the same fixture server pattern."""
@@ -214,6 +263,7 @@ class MoonrakerJobControlTests(unittest.TestCase):
     def setUp(self):
         MoonrakerFixtureHandler.requested_paths = []
         MoonrakerFixtureHandler.post_status_code = 200
+        MoonrakerFixtureHandler.post_response_override = None
         self.base_url = f"http://127.0.0.1:{self.server.server_port}"
 
     def job(self, phase=JobPhase.PROCESS):
@@ -311,6 +361,33 @@ class MoonrakerJobControlTests(unittest.TestCase):
         result = MoonrakerJobControl().cancel_job("file:///printer.cfg")
         self.assertFalse(result.executed)
         self.assertIn("http(s)", result.reason)
+
+    def test_an_http_200_with_an_unexpected_body_is_never_reported_as_executed_regression_for_H007(self):
+        # H007: an HTTP 200 alone used to be trusted as unconditional
+        # success, response body entirely discarded. A misconfigured
+        # proxy, captive portal, or unrelated service on the same host/
+        # port could all answer 200 without ever having reached real
+        # Moonraker at all.
+        for body in (b"", b"null", b'"ok"', b"{}", b'{"result": "error"}', b"<html>not moonraker</html>"):
+            with self.subTest(body=body):
+                MoonrakerFixtureHandler.post_response_override = body
+                result = MoonrakerJobControl().pause_job(self.base_url)
+                self.assertTrue(result.allowed)
+                self.assertFalse(result.executed, f"body={body!r} must not be trusted as a real confirmation")
+                self.assertEqual(result.http_status, 200)
+
+    def test_an_http_200_with_the_real_confirmation_body_is_reported_as_executed(self):
+        MoonrakerFixtureHandler.post_response_override = b'{"result": "ok"}'
+        result = MoonrakerJobControl().pause_job(self.base_url)
+        self.assertTrue(result.allowed)
+        self.assertTrue(result.executed)
+
+    def test_an_oversized_post_response_fails_closed_before_json_parsing_regression_for_H007(self):
+        MoonrakerFixtureHandler.post_response_override = b'{"result": "ok", "padding": "' + b"x" * (64 * 1024) + b'"}'
+        result = MoonrakerJobControl().pause_job(self.base_url)
+        self.assertTrue(result.allowed)
+        self.assertFalse(result.executed)
+        self.assertIn("64 KiB", result.reason)
 
 
 if __name__ == "__main__":
