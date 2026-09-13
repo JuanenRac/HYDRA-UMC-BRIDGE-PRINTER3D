@@ -6,6 +6,30 @@ GPL-3.0-or-later - see LICENSE
 
 # Changelog
 
+## [0.1.3] - H050/H051: configurable MQTT authentication, and a retained command can no longer replay as a live one
+
+- **H050.** `run_forever()` had no way to authenticate against
+  HYDRA-UMC-MQTT-BROKER's own real, opt-in `MQTT_AUTH_JSON` username/
+  password CONNECT authentication - a broker deployed with credentials
+  required was simply unreachable from this bridge. New optional
+  `username`/`password` keyword arguments call paho-mqtt's own
+  `username_pw_set()`; a `password` given without a `username` is
+  rejected outright rather than silently connecting unauthenticated.
+- **H051.** `on_connect()`'s `subscribe("cmd/#")` makes the broker replay
+  every currently-retained message on that wildcard immediately - on
+  *every* reconnect, not just once at startup. A retained `cmd/start` or
+  `cmd/resume` would otherwise re-start or re-resume a real print job
+  with no new operator intent behind it, every single time this bridge
+  reconnects. `handle_message()` now takes a `retained` flag and ignores
+  any retained delivery before it ever reaches Moonraker; `on_message()`
+  passes the real MQTT message's own `.retain` flag through.
+- 8 new tests (4 confirming `cmd/start`/`cmd/resume`/`cmd/cancel` never
+  reach the real local Moonraker fixture server when retained, plus the
+  same auth/retain-passthrough coverage as sibling bridges), confirmed to
+  fail against the pre-fix code (7 real failures) via a local revert of
+  just `mqtt_transport.py`, tests kept. 72/72 `unittest` cases pass
+  (`python tools/build_test.py`, up from 64).
+
 ## [0.1.2] - H005/H006/H007: stale gate reuse, non-object JSON roots, unconfirmed POSTs
 
 - **H005:** `refresh_status()` cached its result in `_last_status` with no
