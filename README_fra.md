@@ -1,6 +1,6 @@
 <!-- =============================================================================
 HYDRA-UMC-BRIDGE-PRINTER3D - Pont logiciel pour impression 3D
-Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
+Copyright (C) JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
 GPL-3.0-or-later - see LICENSE
 ============================================================================= -->
 
@@ -130,7 +130,7 @@ bash build-test.sh
 bash build.sh
 ```
 
-`build-test` compile chaque module de `src/` et `tools/` avec `py_compile` et exécute toute la suite `unittest` (`tests/test_moonraker.py` et `tests/test_artifacts.py`), démontrant l'analyse de disponibilité, l'inspection d'artefacts et le portail de sécurité — il n'envoie aucun G-code, ne touche aucune imprimante et ne modifie jamais le dépôt. `build` exécute d'abord cette même validation et, seulement en cas de succès, appelle `tools/bump_version.py` pour synchroniser la version dans `pyproject.toml`, `hydra-umc.project.json` et `CHANGELOG.md`. Il n'existe pas encore de commande `run` imprimante réelle — cela nécessite d'abord un profil testé, une authentification et une revue de sécurité physique.
+`build-test` compile chaque module de `src/` et `tools/` avec `py_compile` et exécute toute la suite `unittest` découverte sous `tests/` (`test_moonraker.py`, `test_artifacts.py`, `test_profiles.py`, `test_mqtt_transport.py` - 72 tests), démontrant l'analyse de disponibilité, l'inspection d'artefacts et le portail de sécurité parmi tout le reste couvert — il n'envoie aucun G-code, ne touche aucune imprimante et ne modifie jamais le dépôt. `build` exécute d'abord cette même validation et, seulement en cas de succès, appelle `tools/bump_version.py` pour synchroniser la version dans `pyproject.toml`, `hydra-umc.project.json` et `CHANGELOG.md`. Il n'existe pas encore de commande `run` imprimante réelle — cela nécessite d'abord un profil testé, une authentification et une revue de sécurité physique.
 
 Pour inspecter une sortie locale de slicer sans contacter une imprimante :
 

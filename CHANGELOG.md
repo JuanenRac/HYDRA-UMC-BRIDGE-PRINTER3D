@@ -1,6 +1,6 @@
 <!-- =============================================================================
 HYDRA-UMC-BRIDGE-PRINTER3D - Change history
-Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
+Copyright (C) JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
 GPL-3.0-or-later - see LICENSE
 ============================================================================= -->
 
@@ -76,9 +76,9 @@ GPL-3.0-or-later - see LICENSE
   unvalidated against real hardware (every test of that path runs against
   this repo's own HTTP fixture, never a physical printer).
 
-## [0.1.1] - PRINT-01/PRINT-02: real phase gating and a real envelope fix
+## [0.1.1] - Real phase gating and a real envelope fix
 
-- **PRINT-01 (P0):** `evaluate_job()` (the shared gate `PrinterBridge.plan()` calls)
+- **Fixed a real START-via-ABORT gating bug (P0):** `evaluate_job()` (the shared gate `PrinterBridge.plan()` calls)
   deliberately always allows `JobPhase.ABORT`, "so that an external
   integration can request a controlled stop" - correct for a STOP-class
   action, but `MoonrakerJobControl.start_job()` reused that same generic
@@ -89,7 +89,7 @@ GPL-3.0-or-later - see LICENSE
   response to what was labeled a request to STOP. Fixed: `start_job()`
   now refuses any job whose `phase` is not `PROCESS` before the shared
   gate is ever consulted.
-- **PRINT-02 (P1):** `parse_print_stats()`
+- **Fixed a real Moonraker envelope-unwrapping bug (P1):** `parse_print_stats()`
   looked for `status` directly on the outer HTTP response instead of
   unwrapping Moonraker's own real `result` envelope first
   (`{"result": {"status": {"print_stats": {...}}}}` - moonraker.readthedocs.io,
@@ -102,7 +102,7 @@ GPL-3.0-or-later - see LICENSE
   real envelope shape.
 - 5 tests added/updated (56 total, up from 53) - `python -m unittest
   discover -s tests`: all passing.
-- **LANG-09:** the English README's own
+- **Fixed a missing translation section:** the English README's own
   "artifact/profile match is still evidence, never permission to print"
   paragraph, linking `docs/PRINT_PROFILE_BOUNDARY.md`, was missing from
   all 6 translations even though the file was already listed in each
