@@ -1,6 +1,6 @@
 <!-- =============================================================================
 HYDRA-UMC-BRIDGE-PRINTER3D - Ponte software per stampa 3D
-Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
+Copyright (C) JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
 GPL-3.0-or-later - see LICENSE
 ============================================================================= -->
 
@@ -130,7 +130,7 @@ bash build-test.sh
 bash build.sh
 ```
 
-`build-test` compila ogni modulo in `src/` e `tools/` con `py_compile` ed esegue l'intera suite `unittest` (`tests/test_moonraker.py` e `tests/test_artifacts.py`), dimostrando l'analisi della prontezza, l'ispezione degli artefatti e la porta fail-safe — non invia G-code, non tocca alcuna stampante e non modifica mai il repository. `build` esegue prima quella stessa validazione e, solo in caso di successo, chiama `tools/bump_version.py` per sincronizzare la versione in `pyproject.toml`, `hydra-umc.project.json` e `CHANGELOG.md`. Non esiste ancora un comando `run` stampante reale — serve prima un profilo testato, autenticazione e revisione di sicurezza fisica.
+`build-test` compila ogni modulo in `src/` e `tools/` con `py_compile` ed esegue l'intera suite `unittest` individuata sotto `tests/` (`test_moonraker.py`, `test_artifacts.py`, `test_profiles.py`, `test_mqtt_transport.py` - 72 test), dimostrando l'analisi della prontezza, l'ispezione degli artefatti e la porta fail-safe tra tutto il resto coperto — non invia G-code, non tocca alcuna stampante e non modifica mai il repository. `build` esegue prima quella stessa validazione e, solo in caso di successo, chiama `tools/bump_version.py` per sincronizzare la versione in `pyproject.toml`, `hydra-umc.project.json` e `CHANGELOG.md`. Non esiste ancora un comando `run` stampante reale — serve prima un profilo testato, autenticazione e revisione di sicurezza fisica.
 
 Per ispezionare un output locale dello slicer senza contattare una stampante:
 

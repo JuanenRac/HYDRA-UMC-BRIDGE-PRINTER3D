@@ -1,6 +1,6 @@
 <!-- =============================================================================
 HYDRA-UMC-BRIDGE-PRINTER3D - 3D 打印软件桥接
-Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
+Copyright (C) JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
 GPL-3.0-or-later - see LICENSE
 ============================================================================= -->
 
@@ -130,7 +130,7 @@ bash build-test.sh
 bash build.sh
 ```
 
-`build-test` 使用 `py_compile` 编译 `src/` 和 `tools/` 下的每个模块,并运行完整的 `unittest` 套件(`tests/test_moonraker.py` 和 `tests/test_artifacts.py`),证明就绪响应解析、产物检查和故障安全门控均按预期工作 —— 它不发送任何 G-code、不触碰打印机,也绝不会修改仓库。`build` 会先运行同样的验证,只有成功后才调用 `tools/bump_version.py`,在 `pyproject.toml`、`hydra-umc.project.json` 和 `CHANGELOG.md` 之间同步版本号。目前尚无真正的打印机 `run` 命令 —— 这需要先有经过测试的配置文件、身份验证和物理安全评审。
+`build-test` 使用 `py_compile` 编译 `src/` 和 `tools/` 下的每个模块,并运行在 `tests/` 下发现的完整 `unittest` 套件(`test_moonraker.py`、`test_artifacts.py`、`test_profiles.py`、`test_mqtt_transport.py`——共 72 个测试),证明就绪响应解析、产物检查和故障安全门控等均按预期工作 —— 它不发送任何 G-code、不触碰打印机,也绝不会修改仓库。`build` 会先运行同样的验证,只有成功后才调用 `tools/bump_version.py`,在 `pyproject.toml`、`hydra-umc.project.json` 和 `CHANGELOG.md` 之间同步版本号。目前尚无真正的打印机 `run` 命令 —— 这需要先有经过测试的配置文件、身份验证和物理安全评审。
 
 要在不连接打印机的情况下检查本地切片软件输出:
 
