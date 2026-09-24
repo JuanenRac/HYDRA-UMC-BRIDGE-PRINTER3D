@@ -31,7 +31,7 @@ class MoonrakerProbe:
 
     @staticmethod
     def parse_info(payload: dict[str, object]) -> PrinterStatus:
-        # H006: valid JSON whose root is not an object (a bare array,
+        # valid JSON whose root is not an object (a bare array,
         # string, number, bool or null) is a real possibility from any
         # HTTP endpoint - a misconfigured proxy, an unrelated service on
         # the same host/port - and payload.get(...) below would otherwise
@@ -65,7 +65,7 @@ class MoonrakerProbe:
         # "no override, defer to klippy_state" (standby/complete/cancelled
         # all mean the print head is free); RUNNING/HOLDING/FAULT are real
         # overrides that must win over a bare klippy_state=ready reading.
-        # PRINT-02: a real Moonraker `objects/query` response wraps its own
+        # a real Moonraker `objects/query` response wraps its own
         # `status` object inside a `result` envelope
         # (`{"result": {"status": {"print_stats": {...}}}}`,
         # moonraker.readthedocs.io/en/latest/external_api/introduction/) -
@@ -78,7 +78,7 @@ class MoonrakerProbe:
         # "missing print_stats". Unwrap `result` first, exactly like
         # parse_info() already does, before reaching for `status`.
         #
-        # H006: same real gap as parse_info() above - a non-object JSON
+        # same real gap as parse_info above - a non-object JSON
         # root must fail closed here too, before payload.get(...) below
         # can raise AttributeError on it.
         if not isinstance(payload, dict):
@@ -228,7 +228,7 @@ class MoonrakerJobControl:
         filename: str,
         timeout_seconds: float = 5.0,
     ) -> JobCommandResult:
-        # PRINT-01: evaluate_job() - the shared gate PrinterBridge.plan()
+        # evaluate_job - the shared gate PrinterBridge.plan
         # calls - deliberately always allows JobPhase.ABORT, "so that an
         # external integration can request a controlled stop" (see that
         # function's own docstring in HYDRA-UMC-SDK). That rule is correct
@@ -318,7 +318,7 @@ class MoonrakerJobControl:
         except (URLError, TimeoutError, OSError, ValueError) as error:
             return JobCommandResult(True, False, f"Moonraker unreachable: {error}")
 
-        # H007: an HTTP 200 alone is not Moonraker's own confirmation - a
+        # an HTTP 200 alone is not Moonraker's own confirmation - a
         # misconfigured proxy, captive portal, or unrelated service on the
         # same host/port could all answer 200 with a body that never came
         # from Moonraker at all. Moonraker's own documented contract for

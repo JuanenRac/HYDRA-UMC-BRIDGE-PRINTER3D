@@ -6,16 +6,16 @@ GPL-3.0-or-later - see LICENSE
 
 # Changelog
 
-## [0.1.3] - H050/H051: configurable MQTT authentication, and a retained command can no longer replay as a live one
+## [0.1.3] - configurable MQTT authentication, and a retained command can no longer replay as a live one
 
-- **H050.** `run_forever()` had no way to authenticate against
+- **.** `run_forever` had no way to authenticate against
   HYDRA-UMC-MQTT-BROKER's own real, opt-in `MQTT_AUTH_JSON` username/
   password CONNECT authentication - a broker deployed with credentials
   required was simply unreachable from this bridge. New optional
   `username`/`password` keyword arguments call paho-mqtt's own
   `username_pw_set()`; a `password` given without a `username` is
   rejected outright rather than silently connecting unauthenticated.
-- **H051.** `on_connect()`'s `subscribe("cmd/#")` makes the broker replay
+- **.** `on_connect`'s `subscribe("cmd/#")` makes the broker replay
   every currently-retained message on that wildcard immediately - on
   *every* reconnect, not just once at startup. A retained `cmd/start` or
   `cmd/resume` would otherwise re-start or re-resume a real print job
@@ -30,9 +30,9 @@ GPL-3.0-or-later - see LICENSE
   just `mqtt_transport.py`, tests kept. 72/72 `unittest` cases pass
   (`python tools/build_test.py`, up from 64).
 
-## [0.1.2] - H005/H006/H007: stale gate reuse, non-object JSON roots, unconfirmed POSTs
+## [0.1.2] - stale gate reuse, non-object JSON roots, unconfirmed POSTs
 
-- **H005:** `refresh_status()` cached its result in `_last_status` with no
+- `refresh_status` cached its result in `_last_status` with no
   expiry, and `cmd/resume`, `cmd/start` and `cmd/job` all reused that stale
   reading (`self._last_status or self.refresh_status()`) instead of
   fetching current readiness. A printer that changed state seconds after
@@ -40,7 +40,7 @@ GPL-3.0-or-later - see LICENSE
   Fixed: every command now calls `refresh_status()` unconditionally right
   before deciding, exactly like CNC/LASER's own per-command refresh; the
   cache field is gone.
-- **H006:** `parse_info()` and `parse_print_stats()` called `payload.get(...)`
+- `parse_info` and `parse_print_stats` called `payload.get(...)`
   assuming a JSON object root. Valid JSON whose root is a bare array,
   string, number, bool or null - a real possibility from a misconfigured
   proxy or an unrelated service on the same host/port - raised
@@ -49,7 +49,7 @@ GPL-3.0-or-later - see LICENSE
   wrong shape"), crashing the call instead of failing closed like every
   other malformed-response case already does. Fixed: both now check
   `isinstance(payload, dict)` before touching it.
-- **H007:** `MoonrakerJobControl`'s POST-based job commands treated a bare
+- `MoonrakerJobControl`'s POST-based job commands treated a bare
   HTTP 200 as Moonraker's own confirmation. A misconfigured proxy,
   captive portal, or unrelated service on the same host/port could all
   answer 200 with a body that never came from Moonraker at all. Fixed:
@@ -61,10 +61,10 @@ GPL-3.0-or-later - see LICENSE
 - Fixed a latent bug in this suite's own HTTP fixture: `override or
   default` silently discarded a deliberately-empty (`b""`) override
   response body because it is falsy in Python, hiding exactly the "HTTP
-  200 with an unexpected body" case H007 needed to exercise. Replaced
+  200 with an unexpected body" case needed to exercise. Replaced
   with an explicit `is not None` check everywhere the fixture applies an
   override.
-- **H067 (docs):** `SLICER_ARTIFACT_COMPATIBILITY.md` and
+- **(docs):** `SLICER_ARTIFACT_COMPATIBILITY.md` and
   `PRINT_PROFILE_BOUNDARY.md` described "no printer contact" and
   "future...printer-control capability" as if that applied to the whole
   bridge, when `MoonrakerJobControl` already sends real, gated
