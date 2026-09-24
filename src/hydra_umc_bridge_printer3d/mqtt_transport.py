@@ -99,7 +99,7 @@ class PrinterMqttBridge:
     def refresh_status(self) -> PrinterStatus:
         """Fetch real Moonraker readiness right now - never cached.
 
-        H005: this used to be remembered in `_last_status` and reused by
+        this used to be remembered in `_last_status` and reused by
         `start`/`resume`/`cmd/job` for as long as this bridge stayed up,
         with no expiry - a printer that started printing (or finished a
         pause) seconds after the last `cmd/status` fetch would still gate
@@ -115,7 +115,7 @@ class PrinterMqttBridge:
         silently ignored, never an error - a future sibling topic this
         version does not know about yet must never crash the message loop.
 
-        H051: `retained` is True when the broker delivered this message
+        `retained` is True when the broker delivered this message
         because of the MQTT retain flag, not because a client just
         published it live. `on_connect()`'s own `subscribe("cmd/#")`
         replays every currently-retained message on that wildcard the
@@ -221,7 +221,7 @@ def run_forever(
     The only place this module imports paho-mqtt - lazily, so the rest of
     this module (and every test) works on a host without it installed.
 
-    H050: `username`/`password` are optional (matching
+    `username`/`password` are optional (matching
     HYDRA-UMC-MQTT-BROKER's own `MQTT_AUTH_JSON` authentication, which is
     itself opt-in) - a broker deployed with authentication required had no
     way to be reached from here at all before this. `password` is only

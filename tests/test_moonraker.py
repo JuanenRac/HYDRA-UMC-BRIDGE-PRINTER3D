@@ -30,7 +30,7 @@ class MoonrakerFixtureHandler(BaseHTTPRequestHandler):
     def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler requires this name.
         type(self).requested_paths.append(self.path)
         if self.path.startswith("/printer/objects/query"):
-            # PRINT-02 regression: the real Moonraker response
+            # regression: the real Moonraker response
             # wraps `status` inside a `result` envelope - every fixture in
             # this file used to omit that envelope, which meant the whole
             # suite never actually exercised the real wire shape and
@@ -58,14 +58,14 @@ class MoonrakerFixtureHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):  # noqa: N802 - BaseHTTPRequestHandler requires this name.
         type(self).requested_paths.append(self.path)
-        # H007 regression: real Moonraker confirms these action endpoints
+        # regression: real Moonraker confirms these action endpoints
         # with a JSON object {"result": "ok"}, never a bare JSON string -
         # this fixture used to send `b'"ok"'` (a bare string), which meant
         # the whole suite never actually exercised the real confirmation
-        # shape and would have hidden the exact gap H007 closed.
+        # shape and would have hidden the exact gap closed.
         #
         # `is not None`, never a plain `or` - an overridden EMPTY body
-        # (b"") is itself a real, deliberate test case (H007's own "an
+        # (b"") is itself a real, deliberate test case (this project's own "an
         # HTTP 200 with an unexpected body" coverage) and is falsy, so
         # `override or default` would silently discard it and send the
         # real success body instead - the exact bug this comment is
@@ -187,7 +187,7 @@ class MoonrakerTests(unittest.TestCase):
         self.assertIn("print_stats", status.message)
 
     def test_parse_print_stats_unwraps_the_real_result_envelope_regression_for_print_02(self):
-        # PRINT-02: a real Moonraker objects/query response wraps its own
+        # a real Moonraker objects/query response wraps its own
         # `status` inside a `result` envelope
         # (moonraker.readthedocs.io/en/latest/external_api/introduction/).
         # Direct unit call (no HTTP fixture layer) against exactly that
@@ -216,7 +216,7 @@ class MoonrakerTests(unittest.TestCase):
         self.assertIn("64 KiB", status.message)
 
     def test_a_non_object_json_root_fails_closed_instead_of_crashing_regression_for_H006(self):
-        # H006: valid JSON whose root is not an object (a bare array,
+        # valid JSON whose root is not an object (a bare array,
         # string, number, bool or null) is a real possibility from any
         # HTTP endpoint - payload.get(...) would otherwise raise
         # AttributeError, an exception _get()'s own except clause never
@@ -236,7 +236,7 @@ class MoonrakerTests(unittest.TestCase):
                 self.assertEqual(status.state, MachineState.OFFLINE)
 
     def test_parse_info_and_parse_print_stats_reject_a_non_dict_payload_directly_regression_for_H006(self):
-        # Direct unit call (no HTTP fixture layer), same style as PRINT-02's
+        # Direct unit call (no HTTP fixture layer), same style as 's
         # own regression test above - proves the guard lives in the parser
         # itself, not just behind the fixture's own JSON encoding.
         for payload in ([1, 2, 3], "just a string", 42, True, None):
@@ -277,7 +277,7 @@ class MoonrakerJobControlTests(unittest.TestCase):
         self.assertIn("/printer/print/start?filename=part.gcode", MoonrakerFixtureHandler.requested_paths)
 
     def test_start_job_refuses_an_abort_phase_job_regression_for_print_01(self):
-        # PRINT-01 (P0): evaluate_job() (the shared gate PrinterBridge.plan()
+        # evaluate_job (the shared gate PrinterBridge.plan
         # calls) deliberately always allows JobPhase.ABORT so a bridge's
         # own STOP-class action (cancel_job) can always run - but reused
         # verbatim inside start_job(), that meant an ABORT-phase job
@@ -363,7 +363,7 @@ class MoonrakerJobControlTests(unittest.TestCase):
         self.assertIn("http(s)", result.reason)
 
     def test_an_http_200_with_an_unexpected_body_is_never_reported_as_executed_regression_for_H007(self):
-        # H007: an HTTP 200 alone used to be trusted as unconditional
+        # an HTTP 200 alone used to be trusted as unconditional
         # success, response body entirely discarded. A misconfigured
         # proxy, captive portal, or unrelated service on the same host/
         # port could all answer 200 without ever having reached real

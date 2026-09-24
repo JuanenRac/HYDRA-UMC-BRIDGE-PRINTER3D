@@ -36,7 +36,7 @@ class MoonrakerFixtureHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):  # noqa: N802
         type(self).requested_paths.append(self.path)
-        # H007: real Moonraker confirms these endpoints with {"result":
+        # real Moonraker confirms these endpoints with {"result":
         # "ok"}, never a bare JSON string - see test_moonraker.py's own
         # matching fixture comment.
         payload = b'{"result": "ok"}'
@@ -116,7 +116,7 @@ class PrinterMqttBridgeTests(unittest.TestCase):
 
     def test_start_posts_the_real_filename_when_gate_and_status_allow_it(self):
         # PROCESS is the only real phase cmd/start's own start_job() ever
-        # accepts (see PRINT-01's own fix) - a real caller always asks to
+        # accepts (see this project's own fix) - a real caller always asks to
         # start a job with a PROCESS-phase BridgeJob.
         request = {"job": job_to_dict(job(phase=JobPhase.PROCESS)), "filename": "part.gcode"}
         publishes = self.bridge().handle_message(f"{TOPIC_PREFIX}cmd/start", json.dumps(request).encode("utf-8"))
@@ -133,7 +133,7 @@ class PrinterMqttBridgeTests(unittest.TestCase):
         self.assertFalse(result["allowed"])
 
     def test_start_refuses_a_non_process_phase_job_regression_for_print_01(self):
-        # PRINT-01 (P0): a cmd/start request carrying anything other than a
+        # a cmd/start request carrying anything other than a
         # PROCESS-phase job - ABORT in particular - must never reach
         # Moonraker's own /printer/print/start.
         request = {"job": job_to_dict(job(phase=JobPhase.ABORT)), "filename": "part.gcode"}
@@ -170,7 +170,7 @@ class PrinterMqttBridgeTests(unittest.TestCase):
         self.assertIn("malformed job payload", decision["reason"])
 
     def test_resume_always_refreshes_and_never_reuses_a_stale_cached_status_regression_for_H005(self):
-        # H005: resume/start/cmd-job used to remember whatever status the
+        # resume/start/cmd-job used to remember whatever status the
         # last cmd/status (or the first gated command) had fetched, and
         # reuse it indefinitely - a printer that changed state for real
         # between two commands would still be gated against the earlier
@@ -223,7 +223,7 @@ class RunForeverTests(unittest.TestCase):
         self.assertIn("paho-mqtt is not installed", str(context.exception))
 
     def test_password_without_username_is_rejected_before_ever_touching_paho_mqtt(self):
-        # H050: catches the most likely real misconfiguration (a password
+        # catches the most likely real misconfiguration (a password
         # set without a username) as a real, immediate error - never a
         # silent unauthenticated connection to a broker that actually
         # requires MQTT_AUTH_JSON credentials.
@@ -235,7 +235,7 @@ class RunForeverTests(unittest.TestCase):
         self.assertIn("password was given without a username", str(context.exception))
 
     def test_configures_broker_credentials_when_given(self):
-        # H050: HYDRA-UMC-MQTT-BROKER's own MQTT_AUTH_JSON authentication
+        # HYDRA-UMC-MQTT-BROKER's own MQTT_AUTH_JSON authentication
         # is real but this bridge previously had no way at all to supply
         # a username/password to reach a broker that requires it.
         try:
@@ -270,7 +270,7 @@ class RunForeverTests(unittest.TestCase):
         fake_client.username_pw_set.assert_not_called()
 
     def test_on_message_passes_the_real_retain_flag_through_to_handle_message(self):
-        # H051 end to end: a real paho-mqtt MQTTMessage's own `.retain`
+        # end to end: a real paho-mqtt MQTTMessage's own `.retain`
         # flag must reach handle_message(), or every retained-command
         # protection below would be dead code in the one real path that
         # actually needs it.
@@ -293,7 +293,7 @@ class RunForeverTests(unittest.TestCase):
 
 
 class RetainedMessageTests(unittest.TestCase):
-    """H051: a real broker replays every currently-retained message on the
+    """a real broker replays every currently-retained message on the
     subscribed wildcard immediately upon (re)subscribe - which happens on
     every reconnect, not just once at startup. `cmd/start`/`cmd/resume` in
     particular would otherwise re-start or re-resume a real print job with
