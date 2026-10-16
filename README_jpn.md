@@ -10,7 +10,7 @@ GPL-3.0-or-later - see LICENSE
 
 # 🖨️ HYDRA-UMC-BRIDGE-PRINTER3D
 
-<p align="center"><a href="README.md">🇺🇸 English</a> | <a href="README_spa.md">🇪🇸 Español</a> | <a href="README_fra.md">🇫🇷 Français</a> | <a href="README_ita.md">🇮🇹 Italiano</a> | <a href="README_deu.md">🇩🇪 Deutsch</a> | <a href="README_zho.md">🇨🇳 简体中文</a> | 🇯🇵 <b>日本語</b></p>
+<p align="center"><a href="README.md">🇺🇸 English</a> | <a href="README_spa.md">🇪🇸 Español</a> | <a href="README_fra.md">🇫🇷 Français</a> | <a href="README_ita.md">🇮🇹 Italiano</a> | <a href="README_deu.md">🇩🇪 Deutsch</a> | <a href="README_zho.md">🇨🇳 简体中文</a> | 🇯🇵 <b>日本語</b> | <a href="README_por.md">🇵🇹 Português</a></p>
 
 ### 🌡️ オープンな3Dプリントソフトウェア向けフェイルセーフ連携ブリッジ
 
@@ -22,7 +22,7 @@ GPL-3.0-or-later - see LICENSE
 
 ---
 
-> **誠実性チェック - 今日実際に動くもの:** Moonraker のレディネス確認と安全ゲート（`moonraker.py` の `MoonrakerProbe`/`PrinterBridge`。すべてのジョブは `HYDRA-UMC-SDK` 自身の本物の `evaluate_job()` を通過する）、本物の SDK ゲート付きジョブコマンド（`MoonrakerJobControl` の開始/一時停止/再開/キャンセル）、読み取り専用のアーティファクト/プロファイルエビデンス（`artifacts.py`、`profiles.py`）、および MQTT コマンド/状態ブリッジ（`mqtt_transport.py`）は本物であり、72件の通過する `unittest` ケースで検証されている（`python tools/build_test.py`）。Moonraker 向けのテストは、本物の Moonraker REST API の代わりとなる本物のローカル `ThreadingHTTPServer` に対して実行されており、実際のプリンタではない。MQTT 層自身の `connect_with_retry()`/メッセージルーティングロジックは、本物の `paho-mqtt` 接続やブローカーを一度も開かずにテストされている。下記の README に既に記載されている通り、このブリッジはまだ実際のプリンタ、ホットエンド、ロボットに対して検証されていない。生の G-code ストリーミングは意図的に実装されていない - 名前によって開始/一時停止/再開/キャンセルできるのは、既にアップロード済みで既にスライス済みのファイルのみである。詳細は下記の「現状と次のステップ」に既に明記されており、これまでに実際に出荷された内容は `CHANGELOG.md` を参照。
+> **誠実性チェック - 今日実際に動くもの:** Moonraker のレディネス確認と安全ゲート（`moonraker.py` の `MoonrakerProbe`/`PrinterBridge`。すべてのジョブは `HYDRA-UMC-SDK` 自身の本物の `evaluate_job()` を通過する）、本物の SDK ゲート付きジョブコマンド（`MoonrakerJobControl` の開始/一時停止/再開/キャンセル）、読み取り専用のアーティファクト/プロファイルエビデンス（`artifacts.py`、`profiles.py`）、および MQTT コマンド/状態ブリッジ（`mqtt_transport.py`）は本物であり、76件の通過する `unittest` ケースで検証されている（`python tools/build_test.py`）。Moonraker 向けのテストは、本物の Moonraker REST API の代わりとなる本物のローカル `ThreadingHTTPServer` に対して実行されており、実際のプリンタではない。MQTT 層自身の `connect_with_retry()`/メッセージルーティングロジックは、本物の `paho-mqtt` 接続やブローカーを一度も開かずにテストされている。下記の README に既に記載されている通り、このブリッジはまだ実際のプリンタ、ホットエンド、ロボットに対して検証されていない。生の G-code ストリーミングは意図的に実装されていない - 名前によって開始/一時停止/再開/キャンセルできるのは、既にアップロード済みで既にスライス済みのファイルのみである。詳細は下記の「現状と次のステップ」に既に明記されており、これまでに実際に出荷された内容は `CHANGELOG.md` を参照。
 
 ---
 
@@ -41,6 +41,7 @@ GPL-3.0-or-later - see LICENSE
 * ✅ **実際の、SDK によってゲートされたジョブコマンド:** `MoonrakerJobControl` は Moonraker の文書化された `/printer/print/start|pause|resume|cancel` エンドポイントに実際の `POST` リクエストを送信する —— `start_job()` は、このエコシステムのすべての生産的ディスパッチが使う同じ `evaluate_job()` の判定によってゲートされる。`pause_job()`/`cancel_job()` は常に許可される（`ABORT` と同じデエスカレーションの理由による）。`resume_job()` はプリンターが本当に `HOLDING` 状態であることを要求する。すでにアップロード済み・スライス済みのファイルを名前で開始するだけであり、生の G-code をストリーミングすることは決してない。*(実装済み、`tests/test_moonraker.py` でテスト済み)*
 * ✅ **非破壊的なビルド/テスト:** `build-test.bat`/`.sh` は、G-codeを送信せず、バージョンを変更せず、プリンターに一切触れずに、レスポンスパーサーと安全ゲートをコンパイルする。*(実装済み、下記「ビルドと実行」を参照)*
 * 🔜 **生の G-code ストリーミング:** 意図的に依然として保留されている——任意の低レベルコマンド（名前付きの、すでにスライス済みのジョブではない）を送信するには、テスト済みのプロファイル、認証、そしてこのブリッジがまだ持っていない物理的安全レビューが必要である。*(計画中)*
+* ✅ **重複した冪等キー:** `PrinterMqttBridge` は `IdempotencyStore` を受け取り、重複したジョブキーには再評価せず初回の応答を返すため、重複した `cmd/start` が 2 回目の印刷を開始することはありません。*（実装済み、`tests/test_idempotency.py` でテスト済み）*
 
 ---
 
@@ -91,7 +92,8 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   ├── test_artifacts.py         # スライサー証拠テスト(プリンターI/Oなし)
 │   ├── test_profiles.py         # プロファイル照合は常に実行を拒否する
 │   ├── test_moonraker.py        # レディネス解析とフェイルセーフゲートのテスト
-│   └── test_mqtt_transport.py   # 疑似ブローカークライアントに対するMQTTコマンド/ステータス形状テスト
+│   ├── test_mqtt_transport.py   # 疑似ブローカークライアントに対するMQTTコマンド/ステータス形状テスト
+│   └── test_idempotency.py      # 重複した冪等キーには一度だけ応答する
 ├── tools/
 │   ├── build_test.py            # 非破壊的なコンパイル+テストランナー (build-test.bat/.sh)
 │   ├── inspect_print_artifact.py # ローカル成果物証拠JSON CLI
@@ -130,7 +132,7 @@ bash build-test.sh
 bash build.sh
 ```
 
-`build-test` は `src/` と `tools/` 配下の各モジュールを `py_compile` でコンパイルし、`tests/` 配下で検出される `unittest` の全スイート(`test_moonraker.py`、`test_artifacts.py`、`test_profiles.py`、`test_mqtt_transport.py` - 72件のテスト)を実行して、レディネスレスポンスの解析、成果物検査、フェイルセーフゲートを実証する —— G-codeを一切送信せず、プリンターに触れず、リポジトリを一切変更しない。`build` はまず同じ検証を実行し、成功した場合のみ `tools/bump_version.py` を呼び出して `pyproject.toml`、`hydra-umc.project.json`、`CHANGELOG.md` の間でバージョンを同期する。実際のプリンター向け `run` コマンドはまだ存在しない —— それには事前にテスト済みプロファイル、認証、物理的安全レビューが必要である。
+`build-test` は `src/` と `tools/` 配下の各モジュールを `py_compile` でコンパイルし、`tests/` 配下で検出される `unittest` の全スイート(`test_moonraker.py`、`test_artifacts.py`、`test_profiles.py`、`test_mqtt_transport.py` - 76件のテスト)を実行して、レディネスレスポンスの解析、成果物検査、フェイルセーフゲートを実証する —— G-codeを一切送信せず、プリンターに触れず、リポジトリを一切変更しない。`build` はまず同じ検証を実行し、成功した場合のみ `tools/bump_version.py` を呼び出して `pyproject.toml`、`hydra-umc.project.json`、`CHANGELOG.md` の間でバージョンを同期する。実際のプリンター向け `run` コマンドはまだ存在しない —— それには事前にテスト済みプロファイル、認証、物理的安全レビューが必要である。
 
 プリンターに接続せずローカルのスライサー出力を検査するには:
 
@@ -142,7 +144,7 @@ py tools/inspect_print_artifact.py パス/ジョブ.gcode
 
 ## ✅ 現状と次のステップ
 
-**現時点で実在するもの:** バージョン `0.1.3`。ローカルでテスト済みのMoonrakerレディネスアダプター(`MoonrakerProbe` + `PrinterBridge`)が `HYDRA-UMC-SDK` の共有ジョブゲートの上に構築されており、実際の、SDK によってゲートされたジョブコマンド(`MoonrakerJobControl`:Moonraker 自身の REST API を通じて既にアップロード済みのファイルを開始/一時停止/再開/キャンセル)、主要スライサー系の読み取り専用G-code/3MF/レジンスライス成果物証拠とプロファイル互換性、ローカルHTTP `/printer/info` 契約検証、実際の別個の `/printer/objects/query?print_stats=state` 契約、実際の `POST` ジョブコマンド検証を含む決定論的な72件の `unittest` スイートと、SDKチェックアウトを伴いCIに組み込まれた非破壊的なbuild-testスクリプトを備える。
+**現時点で実在するもの:** バージョン `0.1.4`。ローカルでテスト済みのMoonrakerレディネスアダプター(`MoonrakerProbe` + `PrinterBridge`)が `HYDRA-UMC-SDK` の共有ジョブゲートの上に構築されており、実際の、SDK によってゲートされたジョブコマンド(`MoonrakerJobControl`:Moonraker 自身の REST API を通じて既にアップロード済みのファイルを開始/一時停止/再開/キャンセル)、主要スライサー系の読み取り専用G-code/3MF/レジンスライス成果物証拠とプロファイル互換性、ローカルHTTP `/printer/info` 契約検証、実際の別個の `/printer/objects/query?print_stats=state` 契約、実際の `POST` ジョブコマンド検証を含む決定論的な76件の `unittest` スイートと、SDKチェックアウトを伴いCIに組み込まれた非破壊的なbuild-testスクリプトを備える。
 
 **統合境界:** プリンターのネイティブファームウェア(Moonrakerを介したKlipper)は常に動作、ヒーター、熱保護、機械インターロックを保持する。このブリッジはレディネスを読み取るだけであり、その周辺の*補助的な*ロボット作業をゲート制御するのみである。
 

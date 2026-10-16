@@ -10,7 +10,7 @@ GPL-3.0-or-later - see LICENSE
 
 # 🖨️ HYDRA-UMC-BRIDGE-PRINTER3D
 
-<p align="center">🇺🇸 <b>English</b> | <a href="README_spa.md">🇪🇸 Español</a> | <a href="README_fra.md">🇫🇷 Français</a> | <a href="README_ita.md">🇮🇹 Italiano</a> | <a href="README_deu.md">🇩🇪 Deutsch</a> | <a href="README_zho.md">🇨🇳 简体中文</a> | <a href="README_jpn.md">🇯🇵 日本語</a></p>
+<p align="center">🇺🇸 <b>English</b> | <a href="README_spa.md">🇪🇸 Español</a> | <a href="README_fra.md">🇫🇷 Français</a> | <a href="README_ita.md">🇮🇹 Italiano</a> | <a href="README_deu.md">🇩🇪 Deutsch</a> | <a href="README_zho.md">🇨🇳 简体中文</a> | <a href="README_jpn.md">🇯🇵 日本語</a> | <a href="README_por.md">🇵🇹 Português</a></p>
 
 ### 🌡️ Fail-Safe Coordination Bridge for Open 3D-Printing Software
 
@@ -22,7 +22,7 @@ GPL-3.0-or-later - see LICENSE
 
 ---
 
-> **Honesty check - what actually runs today:** the Moonraker readiness probe and safety gate (`moonraker.py`'s `MoonrakerProbe`/`PrinterBridge`, funneling every job through `HYDRA-UMC-SDK`'s own `evaluate_job()`), the real SDK-gated job commands (`MoonrakerJobControl`'s start/pause/resume/cancel), the read-only artifact/profile evidence (`artifacts.py`, `profiles.py`), and the MQTT command/status bridge (`mqtt_transport.py`) are real and covered by 72 passing `unittest` cases (`python tools/build_test.py`). The Moonraker-facing tests run against a real local `ThreadingHTTPServer` fixture standing in for Moonraker's own REST API - not a real printer - and the MQTT layer's own `connect_with_retry()`/message-routing logic is tested without ever opening a real `paho-mqtt` connection or broker. As the README already states below, this bridge has not been exercised against a real printer, hotend or robot yet. Raw G-code streaming is deliberately not implemented - only an already-uploaded, already-sliced file can be started/paused/resumed/cancelled by name. See "Current Status & Next Steps" below, which already says this plainly, and `CHANGELOG.md` for exactly what has shipped so far.
+> **Honesty check - what actually runs today:** the Moonraker readiness probe and safety gate (`moonraker.py`'s `MoonrakerProbe`/`PrinterBridge`, funneling every job through `HYDRA-UMC-SDK`'s own `evaluate_job()`), the real SDK-gated job commands (`MoonrakerJobControl`'s start/pause/resume/cancel), the read-only artifact/profile evidence (`artifacts.py`, `profiles.py`), and the MQTT command/status bridge (`mqtt_transport.py`) are real and covered by 76 passing `unittest` cases (`python tools/build_test.py`). The Moonraker-facing tests run against a real local `ThreadingHTTPServer` fixture standing in for Moonraker's own REST API - not a real printer - and the MQTT layer's own `connect_with_retry()`/message-routing logic is tested without ever opening a real `paho-mqtt` connection or broker. As the README already states below, this bridge has not been exercised against a real printer, hotend or robot yet. Raw G-code streaming is deliberately not implemented - only an already-uploaded, already-sliced file can be started/paused/resumed/cancelled by name. See "Current Status & Next Steps" below, which already says this plainly, and `CHANGELOG.md` for exactly what has shipped so far.
 
 ---
 
@@ -41,6 +41,7 @@ It belongs to the **External Automation Bridges** family: a set of sibling repos
 * ✅ **Real, SDK-gated job commands:** `MoonrakerJobControl` sends real `POST` requests to Moonraker's documented `/printer/print/start|pause|resume|cancel` endpoints — `start_job()` is gated through the same `evaluate_job()` decision every productive dispatch in this ecosystem uses; `pause_job()`/`cancel_job()` are always allowed (same de-escalation reasoning as `ABORT`); `resume_job()` requires a genuinely `HOLDING` printer. It only ever starts an already-uploaded, already-sliced file by name — it never streams raw G-code. *(implemented, tested in `tests/test_moonraker.py`)*
 * ✅ **Non-mutating build/test:** `build-test.bat`/`.sh` compile the response parser and safety gate without sending a real command, changing versions or touching a printer. *(implemented, see BUILD & RUN below)*
 * 🔜 **Raw G-code streaming** — deliberately still deferred: sending arbitrary low-level commands (not a named, already-sliced job) needs a tested profile, authentication and physical safety review this bridge doesn't have yet. *(planned)*
+* ✅ **Repeated idempotency keys:** `PrinterMqttBridge` accepts an `IdempotencyStore`: a repeated job key gets the answer given the first time instead of being evaluated again, so that a repeated `cmd/start` never starts a second print. *(implemented, tested in `tests/test_idempotency.py`)*
 
 ---
 
@@ -93,7 +94,8 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   ├── test_artifacts.py         # Slicer artifact evidence tests (no printer I/O)
 │   ├── test_profiles.py          # Profile matching always denies execution
 │   ├── test_moonraker.py        # Readiness parsing and fail-safe gate tests
-│   └── test_mqtt_transport.py   # MQTT command/status shape tests against a fake broker client
+│   ├── test_mqtt_transport.py   # MQTT command/status shape tests against a fake broker client
+│   └── test_idempotency.py      # A repeated idempotency key is answered once
 ├── tools/
 │   ├── build_test.py            # Non-mutating compile + test runner (build-test.bat/.sh)
 │   ├── inspect_print_artifact.py # Local artifact evidence JSON CLI
@@ -113,7 +115,7 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 ├── CHANGELOG.md
 ├── CODE_OF_CONDUCT.md / CONTRIBUTING.md / SECURITY.md / SUPPORT.md
 ├── LICENSE / LICENSE.md
-└── README.md / README_*.md      # This file and its 6 translations
+└── README.md / README_*.md      # This file and its 7 translations
 ```
 
 ---
@@ -132,7 +134,7 @@ bash build-test.sh
 bash build.sh
 ```
 
-`build-test` compiles every module under `src/` and `tools/` with `py_compile` and runs the full `unittest` suite discovered under `tests/` (`test_moonraker.py`, `test_artifacts.py`, `test_profiles.py`, `test_mqtt_transport.py` - 72 tests), proving readiness-response parsing, artifact inspection and the fail-safe gate among everything else covered — it sends no G-code, touches no printer and never modifies the repository. `build` runs that same validation first and, only on success, calls `tools/bump_version.py` to synchronize the version across `pyproject.toml`, `hydra-umc.project.json` and `CHANGELOG.md`. There is no live printer `run` command yet — that requires a tested profile, authentication and physical safety review.
+`build-test` compiles every module under `src/` and `tools/` with `py_compile` and runs the full `unittest` suite discovered under `tests/` (`test_moonraker.py`, `test_artifacts.py`, `test_profiles.py`, `test_mqtt_transport.py` - 76 tests), proving readiness-response parsing, artifact inspection and the fail-safe gate among everything else covered — it sends no G-code, touches no printer and never modifies the repository. `build` runs that same validation first and, only on success, calls `tools/bump_version.py` to synchronize the version across `pyproject.toml`, `hydra-umc.project.json` and `CHANGELOG.md`. There is no live printer `run` command yet — that requires a tested profile, authentication and physical safety review.
 
 To inspect a local slicer output without contacting a printer:
 
@@ -144,7 +146,7 @@ py tools/inspect_print_artifact.py path/to/job.gcode
 
 ## ✅ Current Status & Next Steps
 
-**Real today:** version `0.1.3`, a locally tested Moonraker readiness adapter (`MoonrakerProbe` + `PrinterBridge`) backed by `HYDRA-UMC-SDK`'s shared job gate, real SDK-gated job commands (`MoonrakerJobControl`: start/pause/resume/cancel an already-uploaded file through Moonraker's own REST API), read-only G-code/3MF/resin-slice and profile-compatibility evidence for the major slicer families, a deterministic seventy-two-test `unittest` suite including local HTTP `/printer/info`, the real, separate `/printer/objects/query?print_stats=state` contract, and real `POST` job-command verification, and non-mutating build-test scripts wired into CI with an SDK checkout.
+**Real today:** version `0.1.4`, a locally tested Moonraker readiness adapter (`MoonrakerProbe` + `PrinterBridge`) backed by `HYDRA-UMC-SDK`'s shared job gate, real SDK-gated job commands (`MoonrakerJobControl`: start/pause/resume/cancel an already-uploaded file through Moonraker's own REST API), read-only G-code/3MF/resin-slice and profile-compatibility evidence for the major slicer families, a deterministic seventy-six-test `unittest` suite including local HTTP `/printer/info`, the real, separate `/printer/objects/query?print_stats=state` contract, and real `POST` job-command verification, and non-mutating build-test scripts wired into CI with an SDK checkout.
 
 **Integration boundary:** native printer firmware (Klipper via Moonraker) retains motion, heaters, thermal protection and machine interlocks at all times; this bridge reads readiness, sends only already-safe job-level commands (never raw G-code) and gates *auxiliary* robot work around it.
 

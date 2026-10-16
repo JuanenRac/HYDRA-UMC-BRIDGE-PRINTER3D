@@ -44,6 +44,7 @@ from dataclasses import asdict
 from typing import Callable
 
 from hydra_umc_sdk.bridge_contract import BridgeError, CellState, decision_to_dict, job_from_dict
+from hydra_umc_sdk.job_intake import IdempotencyStore
 
 from .moonraker import MoonrakerJobControl, MoonrakerProbe, PrinterBridge, PrinterStatus
 
@@ -89,7 +90,9 @@ class PrinterMqttBridge:
     command here must always act on the current reading.
     """
 
-    def __init__(self, base_url: str, cell_state: Callable[[], CellState]) -> None:
+    def __init__(self, base_url: str, cell_state: Callable[[], CellState], idempotency: IdempotencyStore | None = None) -> None:
+        # docs/BRIDGE_CONTRACT.md: the idempotency key of a job is handled once; a repeat gets the answer that was given, so a repeated start never starts a second print
+        self._idempotency = idempotency
         self._base_url = base_url
         self._cell_state = cell_state
         self._probe = MoonrakerProbe()
@@ -160,9 +163,12 @@ class PrinterMqttBridge:
         except (json.JSONDecodeError, BridgeError, KeyError, ValueError, UnicodeDecodeError) as error:
             result = {"allowed": False, "executed": False, "reason": f"malformed start payload: {error}", "http_status": None}
             return MqttPublish(result_topic, json.dumps(result))
+        repeat = self._repeat(job.idempotency_key, result_topic, {"allowed": False, "executed": False, "reason": "this idempotency_key was already handled", "http_status": None})
+        if repeat is not None:
+            return repeat
         status = self.refresh_status()
         result = self._control.start_job(job, self._cell_state(), status, self._base_url, filename)
-        return _result_payload(result_topic, result)
+        return self._answer(job.idempotency_key, _result_payload(result_topic, result))
 
     def _handle_job(self, payload: bytes) -> MqttPublish:
         try:
@@ -170,9 +176,24 @@ class PrinterMqttBridge:
         except (json.JSONDecodeError, BridgeError, UnicodeDecodeError) as error:
             decision = {"allowed": False, "reason": f"malformed job payload: {error}"}
             return MqttPublish(f"{TOPIC_PREFIX}cmd/job/result", json.dumps(decision))
+        repeat = self._repeat(job.idempotency_key, f"{TOPIC_PREFIX}cmd/job/result", {"allowed": False, "reason": "this idempotency_key was already handled"})
+        if repeat is not None:
+            return repeat
         status = self.refresh_status()
         decision = self._gate.plan(job, self._cell_state(), status)
-        return MqttPublish(f"{TOPIC_PREFIX}cmd/job/result", json.dumps(decision_to_dict(decision)))
+        return self._answer(job.idempotency_key, MqttPublish(f"{TOPIC_PREFIX}cmd/job/result", json.dumps(decision_to_dict(decision))))
+
+    def _repeat(self, key: str, result_topic: str, fallback: dict) -> MqttPublish | None:
+        """None when this job key is new (it is claimed now); otherwise the answer given the first time, which is sent again instead of running the job a second time."""
+        if self._idempotency is None or self._idempotency.claim(key):
+            return None
+        stored = self._idempotency.recall(key)
+        return MqttPublish(result_topic, stored if stored is not None else json.dumps(fallback))
+
+    def _answer(self, key: str, publish: MqttPublish) -> MqttPublish:
+        if self._idempotency is not None:
+            self._idempotency.remember(key, publish.payload)
+        return publish
 
 
 def connect_with_retry(

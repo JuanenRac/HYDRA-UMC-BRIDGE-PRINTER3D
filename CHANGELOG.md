@@ -6,6 +6,11 @@ GPL-3.0-or-later - see LICENSE
 
 # Changelog
 
+## [0.1.4] - A repeated idempotency key never starts a second print
+
+- **Idempotency keys.** `PrinterMqttBridge` accepts an `IdempotencyStore` from HYDRA-UMC-SDK. A `cmd/start` begins a real print: QoS 1 may deliver it twice and a client may retry it, and the repeat started the print again. Now the first time a key arrives the command runs and its answer is kept; a repeat gets that answer and nothing is sent to Moonraker. The same holds for `cmd/job`.
+- Four new tests (tests/test_idempotency.py).
+
 ## [0.1.3] - configurable MQTT authentication, and a retained command can no longer replay as a live one
 
 - **.** `run_forever` had no way to authenticate against
