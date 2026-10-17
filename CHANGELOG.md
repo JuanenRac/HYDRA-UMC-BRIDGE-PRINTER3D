@@ -6,6 +6,13 @@ GPL-3.0-or-later - see LICENSE
 
 # Changelog
 
+## [0.1.5] - Connects to a broker that demands credentials: user, password and TLS from the environment
+
+- The MQTT client now takes its credentials and TLS from the environment of the service (`HYDRA_MQTT_USERNAME`, `HYDRA_MQTT_PASSWORD` or `HYDRA_MQTT_PASSWORD_FILE`, `HYDRA_MQTT_TLS_CA`) through `hydra_umc_sdk.mqtt_connection`, so it can reach a production HYDRA-UMC-MQTT-BROKER, which refuses anonymous clients and evaluates its ACL for the identity of the credential.
+- An explicit `username`/`password` argument still wins, and a password without a user name is refused.
+- The client ID must start with the `clientIdPrefix` of the bridge's credential.
+- New `tests/test_mqtt_environment.py` (a fake paho client, so it runs without paho-mqtt) proves that the environment credentials and the CA reach the client, that the explicit ones win, that nothing set is an anonymous plain connection, and that a lonely password is refused.
+
 ## [0.1.4] - A repeated idempotency key never starts a second print
 
 - **Idempotency keys.** `PrinterMqttBridge` accepts an `IdempotencyStore` from HYDRA-UMC-SDK. A `cmd/start` begins a real print: QoS 1 may deliver it twice and a client may retry it, and the repeat started the print again. Now the first time a key arrives the command runs and its answer is kept; a repeat gets that answer and nothing is sent to Moonraker. The same holds for `cmd/job`.
