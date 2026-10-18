@@ -6,6 +6,9 @@ GPL-3.0-or-later - see LICENSE
 
 # Changelog
 
+## [0.1.7] - Maturity lowered to functional
+- Maturity is functional: the code, tests and documentation are in place, but nothing here has been verified on real hardware yet, so the manifest no longer claims the established level.
+
 ## [0.1.6] - A hostile payload can no longer stop the bridge, a stop never waits, and the answers say what was done
 
 - **The loop survives anything a client sends.** A deeply nested JSON (a few kilobytes of `[` raised `RecursionError`, which escaped and ended `loop_forever()`), a payload larger than 16 KiB, an unreadable payload and any unexpected failure while handling a message are now answered with a refusal on the verb's result topic. Nothing a message does can end the loop.
