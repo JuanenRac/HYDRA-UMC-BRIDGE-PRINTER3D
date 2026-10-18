@@ -24,6 +24,17 @@ GPL-3.0-or-later - see LICENSE
 
 > **Verificação de honestidade - o que realmente corre hoje:** a sonda de prontidão do Moonraker e a porta de segurança (o `MoonrakerProbe`/`PrinterBridge` de `moonraker.py`, que encaminha cada trabalho pelo `evaluate_job()` do próprio `HYDRA-UMC-SDK`), os comandos de trabalho reais protegidos pelo SDK (o iniciar/pausar/retomar/cancelar de `MoonrakerJobControl`), a evidência só de leitura de artefactos/perfis (`artifacts.py`, `profiles.py`) e o bridge MQTT de comandos/estado (`mqtt_transport.py`) são reais e estão cobertos por 103 casos `unittest` que passam (`python tools/build_test.py`). Os testes viradas ao Moonraker correm contra uma fixture real e local `ThreadingHTTPServer` que faz as vezes da API REST do próprio Moonraker, não uma impressora real, e a lógica `connect_with_retry()`/encaminhamento de mensagens da própria camada MQTT testa-se sem nunca abrir uma ligação `paho-mqtt` nem um broker reais. Como o README já indica abaixo, este bridge ainda não foi exercitado contra uma impressora, um hotend ou um robô reais. O envio de G-code em bruto não está implementado de propósito: só um ficheiro já carregado e já fatiado se pode iniciar/pausar/retomar/cancelar pelo nome. Ver «Estado atual e próximos passos» abaixo, que já o diz com clareza, e `CHANGELOG.md` para saber exatamente o que foi entregue até agora.
 
+## 📋 Num relance
+
+| | |
+|---|---|
+| Versão | `0.1.8` |
+| Maturidade | Funcional |
+| Testes | 103 (`python tools/build_test.py`) |
+| Tecnologia | Python / Moonraker / Klipper / G-code / 3MF |
+| Destino | O Raspberry Pi CM5 de uma célula HYDRA-UMC |
+| Em hardware real | Só simulado: testado com emuladores, dublês de teste ou simuladores; não há registo de execução em hardware real para esta versão |
+
 ## 1. 🛠️ VISÃO TÉCNICA GERAL
 
 O **HYDRA-UMC-BRIDGE-PRINTER3D** é o coordenador de alto nível do software aberto de impressão 3D (Moonraker/Klipper) e dos auxiliares robóticos do HYDRA-UMC. Reconhece também, só em leitura, artefactos locais de fatiadores e pode agora enviar comandos de trabalho reais, protegidos pelo SDK (iniciar/pausar/retomar/cancelar um ficheiro já carregado e já fatiado), pela API REST do próprio Moonraker. O firmware nativo da impressora continua a ser responsável em todo o momento pelo movimento, pelos aquecedores, pela proteção térmica e pelos interlocks da máquina: este bridge nunca transmite G-code em bruto e nunca substitui essa autoridade; apenas lê a prontidão, regista evidência de artefactos, envia comandos de nível de trabalho já seguros e coordena os auxiliares à sua volta.

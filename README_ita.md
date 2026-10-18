@@ -26,6 +26,17 @@ GPL-3.0-or-later - see LICENSE
 
 ---
 
+## 📋 In breve
+
+| | |
+|---|---|
+| Versione | `0.1.8` |
+| Maturità | Funzionale |
+| Test | 103 (`python tools/build_test.py`) |
+| Tecnologia | Python / Moonraker / Klipper / G-code / 3MF |
+| Destinazione | Il Raspberry Pi CM5 di una cella HYDRA-UMC |
+| Su hardware reale | Solo simulato: provato con emulatori, test double o simulatori; per questa versione non risulta alcuna esecuzione su hardware reale |
+
 ## 1. 🛠️ PANORAMICA TECNICA
 
 **HYDRA-UMC-BRIDGE-PRINTER3D** è il coordinatore di alto livello per software di stampa 3D open (Moonraker/Klipper) e ausiliari robotici HYDRA-UMC. Riconosce inoltre gli artefatti locali dello slicer in sola lettura e ora può inviare veri comandi di lavoro gestiti dall'SDK (avvio/pausa/ripresa/annullamento di un file già caricato e già processato, più un arresto di emergenza deciso) tramite la REST API propria di Moonraker. Il firmware nativo della stampante rimane sempre responsabile del movimento, dei riscaldatori, della protezione termica e degli interblocchi macchina — questo ponte non trasmette mai G-code grezzo e non sostituisce mai questa autorità; legge soltanto la prontezza, registra l'evidenza degli artefatti, invia comandi di livello lavoro già sicuri e coordina gli ausiliari attorno ad essa.
