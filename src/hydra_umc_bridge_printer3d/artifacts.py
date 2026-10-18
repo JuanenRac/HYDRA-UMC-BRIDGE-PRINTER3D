@@ -99,13 +99,19 @@ def _slicer_hint(kind: PrintArtifactKind, preview: bytes) -> str:
     return "unknown-slicer"
 
 
-def inspect_artifact(candidate: str | Path) -> PrintArtifact:
-    """Inspect a local print artifact without unpacking, parsing commands or I/O to a printer."""
+def inspect_artifact(candidate: str | Path, max_bytes: int | None = None) -> PrintArtifact:
+    """Inspect a local print artifact without unpacking, parsing commands or I/O to a printer.
+
+    The whole file is hashed, which takes as long as the file is big: `max_bytes`
+    refuses a larger artifact up front instead of reading gigabytes. None (the
+    default) puts no limit."""
 
     try:
         path = Path(candidate)
         if not path.is_file():
             return PrintArtifact(False, PrintArtifactKind.UNKNOWN, PrintTechnology.UNKNOWN, "unknown-slicer", "artifact is not a regular file")
+        if max_bytes is not None and path.stat().st_size > max_bytes:
+            return PrintArtifact(False, PrintArtifactKind.UNKNOWN, PrintTechnology.UNKNOWN, "unknown-slicer", f"artifact is larger than the {max_bytes} bytes this inspection allows", path.stat().st_size)
         kind, technology = _classify_name(path)
         digest, preview = _sha256_and_preview(path)
         if kind is PrintArtifactKind.UNKNOWN:

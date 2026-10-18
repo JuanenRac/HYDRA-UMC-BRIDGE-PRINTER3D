@@ -14,4 +14,4 @@ Printer command dispatch (starting/pausing/resuming/cancelling a job) is **not**
 
 Closing that gap (wiring profile compatibility into the gate) still requires all of the following before it can safely widen what a print is authorized to do: authenticated native controller identity, model/firmware compatibility, nozzle/material/volume limits, a reviewed command allow-list, independent safety state, and a physical validation procedure on real hardware.
 
-For an offline review, run `py tools/assess_print_profile.py profile.json job.gcode`. The profile JSON contains only `profile_id`, `technology` (`fdm` or `resin`) and `accepted_kinds`; the resulting JSON still reports `execution_authorized: false` for every input.
+For an offline review, run `python3 tools/assess_print_profile.py profile.json job.gcode` (`py` instead of `python3` on Windows). The profile JSON contains only `profile_id`, `technology` (`fdm` or `resin`) and `accepted_kinds`; the resulting JSON still reports `execution_authorized: false` for every input.

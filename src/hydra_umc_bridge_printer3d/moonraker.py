@@ -8,7 +8,9 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import Callable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
@@ -19,6 +21,58 @@ from hydra_umc_sdk.bridge_contract import BridgeJob, CellState, GateDecision, Jo
 
 _MAX_INFO_BYTES = 64 * 1024
 
+# Moonraker answers 401 to a client it does not trust when [authorization] is
+# configured; an API key goes in this header (the environment variable below is
+# where a service supplies it, so that it never has to sit in a command line).
+API_KEY_HEADER = "X-Api-Key"
+API_KEY_ENV = "MOONRAKER_API_KEY"
+
+# What Moonraker itself accepts as a printable G-code file.
+_GCODE_SUFFIXES = {".gcode", ".gco", ".g", ".gc"}
+
+
+def api_key_from_env(env: "dict[str, str] | None" = None) -> str | None:
+    """The Moonraker API key of this service's environment, or None."""
+    value = (os.environ if env is None else env).get(API_KEY_ENV, "").strip()
+    return value or None
+
+
+def _normalize_base_url(base_url: object) -> tuple[str | None, str]:
+    """(normalized URL, "") for a usable Moonraker base URL, else (None, why)."""
+    if not isinstance(base_url, str):
+        return None, "Moonraker endpoint must be an absolute http(s) URL"
+    normalized = base_url.strip()
+    try:
+        parsed = urlparse(normalized)
+    except ValueError as error:
+        return None, f"Moonraker endpoint is invalid: {error}"
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return None, "Moonraker endpoint must be an absolute http(s) URL"
+    if parsed.query or parsed.fragment or "?" in normalized or "#" in normalized:
+        return None, "Moonraker endpoint must not carry a query or a fragment"
+    return normalized.rstrip("/"), ""
+
+
+def validate_gcode_filename(filename: object) -> str:
+    """"" when `filename` is a safe path below Moonraker's gcodes root, else why not.
+
+    The check is on path components, not on substrings: `part..v2.gcode` is a fine
+    name, `a/../b.gcode` is not. Backslashes, control characters and NUL are refused
+    (they mean something else on another host), and so is a name that is not a
+    G-code file at all."""
+    if not isinstance(filename, str) or not filename.strip():
+        return "a non-empty gcode filename is required"
+    if filename != filename.strip() or filename.startswith(("/", "~")):
+        return "filename must not escape Moonraker's gcodes root"
+    if "\\" in filename or any(ord(char) < 32 or ord(char) == 127 for char in filename):
+        return "filename must not contain backslashes or control characters"
+    path = PurePosixPath(filename)
+    if any(part in {"", ".", ".."} for part in filename.split("/")):
+        return "filename must not escape Moonraker's gcodes root"
+    if path.suffix.lower() not in _GCODE_SUFFIXES:
+        return "filename must be a G-code file (.gcode, .gco, .g or .gc)"
+    return ""
+
 
 @dataclass(frozen=True)
 class PrinterStatus:
@@ -28,6 +82,9 @@ class PrinterStatus:
 
 class MoonrakerProbe:
     """Small stdlib probe for Moonraker's documented `/printer/info` endpoint."""
+
+    def __init__(self, api_key: str | None = None) -> None:
+        self._api_key = api_key
 
     @staticmethod
     def parse_info(payload: dict[str, object]) -> PrinterStatus:
@@ -49,7 +106,10 @@ class MoonrakerProbe:
         message = str(result.get("state_message", ""))
         if state == "ready":
             return PrinterStatus(MachineState.IDLE, message or "printer ready")
-        if state in {"startup", "shutdown", "error"}:
+        if state == "startup":
+            # normal and brief after a FIRMWARE_RESTART: not a fault, just not ready yet (the gate refuses either way)
+            return PrinterStatus(MachineState.OFFLINE, message or "printer is starting up")
+        if state in {"shutdown", "error"}:
             return PrinterStatus(MachineState.FAULT, message or f"printer state {state}")
         return PrinterStatus(MachineState.OFFLINE, message or f"unknown printer state {state or 'missing'}")
 
@@ -112,25 +172,11 @@ class MoonrakerProbe:
         # mode here already gets. A printer that can't be reached is not
         # meaningfully different from one reporting an unknown state - both
         # mean "don't trust this printer as ready", not "crash the caller".
-        if not isinstance(base_url, str):
-            return PrinterStatus(
-                MachineState.OFFLINE,
-                "Moonraker endpoint must be an absolute http(s) URL",
-            )
+        normalized_base_url, problem = _normalize_base_url(base_url)
+        if normalized_base_url is None:
+            return PrinterStatus(MachineState.OFFLINE, problem)
 
-        normalized_base_url = base_url.strip()
-        try:
-            parsed = urlparse(normalized_base_url)
-        except ValueError as error:
-            return PrinterStatus(MachineState.OFFLINE, f"Moonraker endpoint is invalid: {error}")
-
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            return PrinterStatus(
-                MachineState.OFFLINE,
-                "Moonraker endpoint must be an absolute http(s) URL",
-            )
-
-        info_status = self._get(f"{normalized_base_url.rstrip('/')}/printer/info", timeout_seconds, self.parse_info)
+        info_status = self._get(f"{normalized_base_url}/printer/info", timeout_seconds, self.parse_info, self._api_key)
         if info_status.state != MachineState.IDLE:
             # klippy is not ready (startup/shutdown/error) or unreachable -
             # that already fails closed, so there is no point asking a
@@ -141,9 +187,10 @@ class MoonrakerProbe:
         # see parse_print_stats()'s own comment. Query the real, separate
         # print_stats object before trusting IDLE.
         print_status = self._get(
-            f"{normalized_base_url.rstrip('/')}/printer/objects/query?print_stats=state",
+            f"{normalized_base_url}/printer/objects/query?print_stats=state",
             timeout_seconds,
             self.parse_print_stats,
+            self._api_key,
         )
         if print_status is None:
             # standby/complete/cancelled - the print head is genuinely
@@ -162,17 +209,24 @@ class MoonrakerProbe:
         endpoint: str,
         timeout_seconds: float,
         parser: Callable[[dict[str, object]], "PrinterStatus | None"],
+        api_key: str | None = None,
     ) -> "PrinterStatus | None":
         # Shared transport for both /printer/info and /printer/objects/query -
         # the same real failure modes (unreachable, malformed, oversized)
         # apply to either endpoint, so both fail the same safe way.
+        request = Request(endpoint, headers={API_KEY_HEADER: api_key} if api_key else {})  # nosec B310: configured controller endpoint, restricted to HTTP(S) above
         try:
-            with urlopen(endpoint, timeout=timeout_seconds) as response:  # nosec B310: configured controller endpoint, restricted to HTTP(S) above
+            with urlopen(request, timeout=timeout_seconds) as response:  # nosec B310
                 payload = response.read(_MAX_INFO_BYTES + 1)
             if len(payload) > _MAX_INFO_BYTES:
                 return PrinterStatus(MachineState.OFFLINE, "Moonraker response exceeds the 64 KiB readiness limit")
             parsed_payload = json.loads(payload.decode("utf-8"))
             return parser(parsed_payload)
+        except HTTPError as error:
+            error.close()
+            if error.code in (401, 403):
+                return PrinterStatus(MachineState.OFFLINE, f"Moonraker refused the credentials (HTTP {error.code}): set {API_KEY_ENV}")
+            return PrinterStatus(MachineState.OFFLINE, f"Moonraker unreachable: {error}")
         except (URLError, TimeoutError, OSError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as error:
             return PrinterStatus(MachineState.OFFLINE, f"Moonraker unreachable: {error}")
 
@@ -219,6 +273,9 @@ class MoonrakerJobControl:
     manifest has always said.
     """
 
+    def __init__(self, api_key: str | None = None) -> None:
+        self._api_key = api_key
+
     def start_job(
         self,
         job: BridgeJob,
@@ -248,17 +305,20 @@ class MoonrakerJobControl:
         decision = PrinterBridge().plan(job, cell_state, printer)
         if not decision.allowed:
             return JobCommandResult(False, False, decision.reason)
-        if not isinstance(filename, str) or not filename.strip():
-            return JobCommandResult(True, False, "a non-empty gcode filename is required")
-        if ".." in filename or filename.startswith("/"):
-            return JobCommandResult(True, False, "filename must not escape Moonraker's gcodes root")
-        return self._post(base_url, "/printer/print/start", timeout_seconds, {"filename": filename})
+        problem = validate_gcode_filename(filename)
+        if problem:
+            return JobCommandResult(True, False, problem)
+        # the file must really be on the printer: a name that exists nowhere is refused here, not left to Klipper
+        unknown = self._file_problem(base_url, filename, timeout_seconds)
+        if unknown is not None:
+            return JobCommandResult(True, False, unknown)
+        return self._post(base_url, "/printer/print/start", timeout_seconds, {"filename": filename}, self._api_key)
 
     def pause_job(self, base_url: str, timeout_seconds: float = 5.0) -> JobCommandResult:
         # Always allowed, same de-escalation reasoning as ABORT/HOLD_POSITION
         # elsewhere in this ecosystem - an operator must always be able to
         # pause an active job; pausing only ever reduces risk.
-        return self._post(base_url, "/printer/print/pause", timeout_seconds, None)
+        return self._post(base_url, "/printer/print/pause", timeout_seconds, None, self._api_key)
 
     def resume_job(
         self,
@@ -280,12 +340,39 @@ class MoonrakerJobControl:
             return JobCommandResult(
                 False, False, f"printer is {printer.state.value}, not HOLDING (nothing to resume)"
             )
-        return self._post(base_url, "/printer/print/resume", timeout_seconds, None)
+        return self._post(base_url, "/printer/print/resume", timeout_seconds, None, self._api_key)
 
     def cancel_job(self, base_url: str, timeout_seconds: float = 5.0) -> JobCommandResult:
         # Always allowed, same reasoning as ABORT everywhere else in this
         # ecosystem - a controlled stop must never be gated on machine state.
-        return self._post(base_url, "/printer/print/cancel", timeout_seconds, None)
+        return self._post(base_url, "/printer/print/cancel", timeout_seconds, None, self._api_key)
+
+    def emergency_stop(self, base_url: str, timeout_seconds: float = 5.0) -> JobCommandResult:
+        # The hard stop (Klipper M112): heaters and motors off at once. Never gated and
+        # never deduplicated - a stop must always get through. Klipper needs a
+        # FIRMWARE_RESTART afterwards, which is a human decision this bridge never takes.
+        return self._post(base_url, "/printer/emergency_stop", timeout_seconds, None, self._api_key)
+
+    def _file_problem(self, base_url: str, filename: str, timeout_seconds: float) -> str | None:
+        """None when Moonraker knows `filename`; otherwise why the start must not go ahead."""
+        normalized_base_url, problem = _normalize_base_url(base_url)
+        if normalized_base_url is None:
+            return problem
+        endpoint = f"{normalized_base_url}/server/files/metadata?{urlencode({'filename': filename})}"
+        request = Request(endpoint, headers={API_KEY_HEADER: self._api_key} if self._api_key else {})  # nosec B310: configured controller endpoint, restricted to HTTP(S) above
+        try:
+            with urlopen(request, timeout=timeout_seconds) as response:  # nosec B310
+                response.read(_MAX_INFO_BYTES + 1)
+        except HTTPError as error:
+            error.close()
+            if error.code == 404:
+                return f"Moonraker has no file {filename!r} to print"
+            if error.code in (401, 403):
+                return f"Moonraker refused the credentials (HTTP {error.code}): set {API_KEY_ENV}"
+            return f"Moonraker could not check the file: HTTP {error.code}"
+        except (URLError, TimeoutError, OSError, ValueError) as error:
+            return f"Moonraker unreachable: {error}"
+        return None
 
     @staticmethod
     def _post(
@@ -293,27 +380,25 @@ class MoonrakerJobControl:
         path: str,
         timeout_seconds: float,
         params: dict[str, str] | None,
+        api_key: str | None = None,
     ) -> JobCommandResult:
-        if not isinstance(base_url, str):
-            return JobCommandResult(True, False, "Moonraker endpoint must be an absolute http(s) URL")
-        normalized_base_url = base_url.strip()
-        try:
-            parsed = urlparse(normalized_base_url)
-        except ValueError as error:
-            return JobCommandResult(True, False, f"Moonraker endpoint is invalid: {error}")
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            return JobCommandResult(True, False, "Moonraker endpoint must be an absolute http(s) URL")
+        normalized_base_url, problem = _normalize_base_url(base_url)
+        if normalized_base_url is None:
+            return JobCommandResult(True, False, problem)
 
-        endpoint = f"{normalized_base_url.rstrip('/')}{path}"
+        endpoint = f"{normalized_base_url}{path}"
         if params:
             endpoint = f"{endpoint}?{urlencode(params)}"
-        request = Request(endpoint, method="POST", data=b"")  # nosec B310: configured controller endpoint, restricted to HTTP(S) above
+        headers = {API_KEY_HEADER: api_key} if api_key else {}
+        request = Request(endpoint, method="POST", data=b"", headers=headers)  # nosec B310: configured controller endpoint, restricted to HTTP(S) above
         try:
             with urlopen(request, timeout=timeout_seconds) as response:  # nosec B310
                 body = response.read(_MAX_INFO_BYTES + 1)
                 status_code = response.status
         except HTTPError as error:
             error.close()
+            if error.code in (401, 403):
+                return JobCommandResult(True, False, f"Moonraker refused the credentials (HTTP {error.code}): set {API_KEY_ENV}", error.code)
             return JobCommandResult(True, False, f"Moonraker rejected the command: HTTP {error.code}", error.code)
         except (URLError, TimeoutError, OSError, ValueError) as error:
             return JobCommandResult(True, False, f"Moonraker unreachable: {error}")

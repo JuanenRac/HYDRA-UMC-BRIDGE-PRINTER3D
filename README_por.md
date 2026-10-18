@@ -22,7 +22,7 @@ GPL-3.0-or-later - see LICENSE
 
 ---
 
-> **Verificação de honestidade - o que realmente corre hoje:** a sonda de prontidão do Moonraker e a porta de segurança (o `MoonrakerProbe`/`PrinterBridge` de `moonraker.py`, que encaminha cada trabalho pelo `evaluate_job()` do próprio `HYDRA-UMC-SDK`), os comandos de trabalho reais protegidos pelo SDK (o iniciar/pausar/retomar/cancelar de `MoonrakerJobControl`), a evidência só de leitura de artefactos/perfis (`artifacts.py`, `profiles.py`) e o bridge MQTT de comandos/estado (`mqtt_transport.py`) são reais e estão cobertos por 80 casos `unittest` que passam (`python tools/build_test.py`). Os testes viradas ao Moonraker correm contra uma fixture real e local `ThreadingHTTPServer` que faz as vezes da API REST do próprio Moonraker, não uma impressora real, e a lógica `connect_with_retry()`/encaminhamento de mensagens da própria camada MQTT testa-se sem nunca abrir uma ligação `paho-mqtt` nem um broker reais. Como o README já indica abaixo, este bridge ainda não foi exercitado contra uma impressora, um hotend ou um robô reais. O envio de G-code em bruto não está implementado de propósito: só um ficheiro já carregado e já fatiado se pode iniciar/pausar/retomar/cancelar pelo nome. Ver «Estado atual e próximos passos» abaixo, que já o diz com clareza, e `CHANGELOG.md` para saber exatamente o que foi entregue até agora.
+> **Verificação de honestidade - o que realmente corre hoje:** a sonda de prontidão do Moonraker e a porta de segurança (o `MoonrakerProbe`/`PrinterBridge` de `moonraker.py`, que encaminha cada trabalho pelo `evaluate_job()` do próprio `HYDRA-UMC-SDK`), os comandos de trabalho reais protegidos pelo SDK (o iniciar/pausar/retomar/cancelar de `MoonrakerJobControl`), a evidência só de leitura de artefactos/perfis (`artifacts.py`, `profiles.py`) e o bridge MQTT de comandos/estado (`mqtt_transport.py`) são reais e estão cobertos por 103 casos `unittest` que passam (`python tools/build_test.py`). Os testes viradas ao Moonraker correm contra uma fixture real e local `ThreadingHTTPServer` que faz as vezes da API REST do próprio Moonraker, não uma impressora real, e a lógica `connect_with_retry()`/encaminhamento de mensagens da própria camada MQTT testa-se sem nunca abrir uma ligação `paho-mqtt` nem um broker reais. Como o README já indica abaixo, este bridge ainda não foi exercitado contra uma impressora, um hotend ou um robô reais. O envio de G-code em bruto não está implementado de propósito: só um ficheiro já carregado e já fatiado se pode iniciar/pausar/retomar/cancelar pelo nome. Ver «Estado atual e próximos passos» abaixo, que já o diz com clareza, e `CHANGELOG.md` para saber exatamente o que foi entregue até agora.
 
 ## 1. 🛠️ VISÃO TÉCNICA GERAL
 
@@ -32,14 +32,15 @@ Pertence à família de **Bridges de automação externa**: um conjunto de repos
 
 ### Funcionalidades principais:
 * ✅ **Sonda real de prontidão do Moonraker:** o `MoonrakerProbe` de `moonraker.py` consome o endpoint documentado `/printer/info` do Moonraker com um pequeno cliente só da biblioteca padrão (`urlopen` + `json`), sem nenhuma dependência para além da biblioteca padrão do Python. *(implementado, testado em `tests/test_moonraker.py`)*
-* ✅ **Análise real de estados com falha segura:** `parse_info()` só associa a cadeia literal `"ready"` a `MachineState.IDLE`; `startup`/`shutdown`/`error` correspondem a `FAULT` e tudo o resto (incluindo uma resposta malformada) a `OFFLINE`, nunca a um estado que permitisse planear um robô à volta da impressora. *(implementado)*
-* ✅ **Porta de segurança partilhada real:** cada trabalho observado é reavaliado pelo `evaluate_job()` do `bridge_contract` do `HYDRA-UMC-SDK`, a mesma porta que usam todos os bridges irmãos e o HYDRA-UMC-SERVER. *(implementado)*
+* ✅ **Análise real de estados com falha segura:** `parse_info()` só associa a cadeia literal `"ready"` a `MachineState.IDLE`; `shutdown`/`error` correspondem a `FAULT` e tudo o resto (incluindo uma resposta malformada) a `OFFLINE`, nunca a um estado que permitisse planear um robô à volta da impressora. *(implementado)*
+* ✅ **Porta de segurança partilhada real:** cada trabalho observado é reavaliado pelo `evaluate_job()` do `bridge_contract` do `HYDRA-UMC-SDK`, a mesma porta que usam todos os bridges irmãos. *(implementado)*
 * ✅ **Inspeção de artefactos independente do fatiador:** `artifacts.py` identifica G-code FDM simples do OrcaSlicer, Ultimaker Cura, PrusaSlicer, Bambu Studio e outros fatiadores apenas com evidência local; reconhece também pacotes 3MF e fatias de resina opacas compatíveis com o Lychee sem as desempacotar, analisar comandos, enviar nem imprimir. *(implementado, testado em `tests/test_artifacts.py`)*
 * ✅ **Limite de evidência de perfis:** `profiles.py` pode associar um artefacto inspecionado a um perfil FDM ou de resina declarado, mas devolve `execution_authorized=False` mesmo havendo correspondência. *(implementado, testado em `tests/test_profiles.py`)*
 * ✅ **Comandos de trabalho reais protegidos pelo SDK:** o `MoonrakerJobControl` envia pedidos `POST` reais aos endpoints documentados `/printer/print/start|pause|resume|cancel` do Moonraker; `start_job()` passa pela mesma decisão de `evaluate_job()` que usa cada despacho produtivo deste ecossistema; `pause_job()`/`cancel_job()` permitem-se sempre (o mesmo raciocínio de desescalada que `ABORT`); `resume_job()` exige uma impressora genuinamente em `HOLDING`. Só inicia um ficheiro já carregado e já fatiado, pelo nome: nunca transmite G-code em bruto. *(implementado, testado em `tests/test_moonraker.py`)*
 * ✅ **Compilação/teste que não altera nada:** `build-test.bat`/`.sh` compilam o analisador de respostas e a porta de segurança sem enviar nenhum comando real, alterar versões nem tocar numa impressora. *(implementado, ver COMPILAR E EXECUTAR abaixo)*
 * 🔜 **Envio de G-code em bruto:** continua adiado de propósito: enviar comandos arbitrários de baixo nível (que não sejam um trabalho com nome e já fatiado) exige um perfil testado, autenticação e uma revisão de segurança física que este bridge ainda não tem. *(planeado)*
 * ✅ **Chaves de idempotência repetidas:** `PrinterMqttBridge` aceita um `IdempotencyStore`: uma chave de trabalho repetida recebe a resposta dada da primeira vez em vez de ser avaliada de novo, de modo que um `cmd/start` repetido nunca inicia uma segunda impressão. *(implementado, testado em `tests/test_idempotency.py`)*
+* ✅ **Ciclo MQTT blindado:** uma carga demasiado grande (mais de 16 KiB) ou ilegível, um JSON profundamente aninhado e qualquer falha inesperada recebem uma recusa no tópico de resultado e nunca terminam o ciclo; pausa, cancelamento e o novo `cmd/emergency_stop` (M112 do Klipper) são tratados numa faixa própria, pelo que um Moonraker lento nunca atrasa uma paragem; as chaves de idempotência são por verbo (`job:`/`start:`); as respostas de `cmd/job` indicam `"mode": "gate-only"` e um ABORT por aí diz que nada foi parado; o estado inclui `observed_at` e o bridge anuncia-se num tópico `availability` com Last Will; a chave API do Moonraker (`MOONRAKER_API_KEY`, enviada como `X-Api-Key`) é suportada, e um arranque só é enviado para um ficheiro que o Moonraker conheça. *(implementado, testado em `tests/test_hardening.py`)*
 
 ---
 
@@ -49,8 +50,7 @@ Pertence à família de **Bridges de automação externa**: um conjunto de repos
 flowchart LR
     PRINTER["Moonraker / Klipper<br/>(/printer/info)"] --> BRIDGE["BRIDGE-PRINTER3D<br/>MoonrakerProbe.parse_info()"]
     BRIDGE -- "BridgeJob + MachineState observado" --> SDK["HYDRA-UMC-SDK<br/>evaluate_job()"]
-    SDK -- GateDecision --> SERVER["HYDRA-UMC-SERVER"]
-    SERVER -- "trabalho / abortar" --> CELL["Segurança da célula"]
+    SDK -- GateDecision --> RESULT["MQTT: cmd/job/result"]
     SDK -- "permitido" --> JOBCTRL["MoonrakerJobControl<br/>iniciar/pausar/retomar/cancelar"]
     JOBCTRL -- "POST /printer/print/*" --> PRINTER
 ```
@@ -59,13 +59,13 @@ flowchart LR
 
 ## 3. 🧱 ARQUITETURA E DECISÕES DE DESENHO
 
-* **Porque só o estado literal `"ready"` do Moonraker corresponde a inativo.** O mapeamento de estados de `parse_info()` é estreito de propósito: `ready` → `IDLE`, `startup`/`shutdown`/`error` → `FAULT` (falha segura) e qualquer outro valor ou valor em falta → `OFFLINE`. Não há nenhum pressuposto de «seguro por omissão» para um estado de impressora não reconhecido.
+* **Porque só o estado literal `"ready"` do Moonraker corresponde a inativo.** O mapeamento de estados de `parse_info()` é estreito de propósito: `ready` → `IDLE`, `shutdown`/`error` → `FAULT`, `startup` → `OFFLINE` (falha segura) e qualquer outro valor ou valor em falta → `OFFLINE`. Não há nenhum pressuposto de «seguro por omissão» para um estado de impressora não reconhecido.
 * **Porque a análise é um `@staticmethod` separado da obtenção pela rede.** `MoonrakerProbe.parse_info()` recebe um `dict` simples e testa-se por completo sem chamada de rede nem impressora em funcionamento; `fetch()` é a peça fina e necessariamente de rede que o chama. A lógica relevante para a segurança vive na parte que nunca precisa de uma impressora viva para se testar.
 * **Porque a sonda usa `urlopen`/`json` da biblioteca padrão em vez de uma biblioteca cliente do Moonraker.** Limitar a superfície de dependências à biblioteca padrão do Python mantém mínima e auditável a análise relevante para a segurança e livre dos pressupostos de um cliente de terceiros sobre repetições, tempos limite ou tratamento de erros.
 * **Porque o bridge constrói um novo `BridgeJob` e delega no `evaluate_job()` partilhado em vez de escrever a sua própria lógica de aceitar/rejeitar.** Os cinco Bridges de automação externa (CNC, LASER, OPENPNP, PRINTER3D, ROS2) reutilizam exatamente o mesmo `bridge_contract` do `HYDRA-UMC-SDK`, de modo que o que conta como «seguro para iniciar um trabalho» não pode divergir em silêncio entre eles.
 * **Porque os comandos de trabalho (iniciar/pausar/retomar/cancelar) são reais mas o envio de G-code em bruto ainda não.** Os endpoints `/printer/print/*` do Moonraker só referenciam um ficheiro já carregado e já fatiado, pelo nome: o mesmo envelope de segurança que o próprio Moonraker/Klipper já impõem a esse ficheiro. O G-code em bruto arbitrário é uma superfície de confiança fundamentalmente diferente e muito maior (pode conter qualquer coisa) e ainda exige um perfil testado, autenticação e uma revisão de segurança física que este bridge não tem.
 * **Porque `resume_job()` não reutiliza a porta genérica `evaluate_job()`.** Essa porta assenta em «o trabalho produtivo precisa de uma máquina IDLE», o que é ao contrário para retomar um trabalho em pausa, que só faz sentido a partir de `HOLDING`. O mesmo raciocínio de porta autónoma já usado em `stand_request()`/`sit_request()` do DROIDS.
-* **Como se encaixa no resto do ecossistema.** O BRIDGE-PRINTER3D fica entre o Moonraker/Klipper e o `HYDRA-UMC-SDK` → `HYDRA-UMC-SERVER` → segurança da célula: coordena o trabalho auxiliar do robô em redor da impressora e envia agora comandos de trabalho reais e protegidos, mas nunca transmite G-code em bruto e nunca substitui o firmware nativo, os aquecedores nem a proteção térmica.
+* **Como se encaixa no resto do ecossistema.** O BRIDGE-PRINTER3D fica entre o Moonraker/Klipper e o `HYDRA-UMC-SDK` → `HYDRA-UMC-MQTT-BROKER` → segurança da célula: coordena o trabalho auxiliar do robô em redor da impressora e envia agora comandos de trabalho reais e protegidos, mas nunca transmite G-code em bruto e nunca substitui o firmware nativo, os aquecedores nem a proteção térmica.
 
 ## 🧾 COMPATIBILIDADE COM ARTEFACTOS DE FATIADORES
 
@@ -94,7 +94,8 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   ├── test_moonraker.py        # Testes da análise de prontidão e da porta de falha segura
 │   ├── test_mqtt_transport.py   # Testes do formato de comandos/estado MQTT contra um cliente de broker falso
 │   ├── test_mqtt_environment.py # As credenciais MQTT e o TLS do ambiente do serviço chegam ao cliente
-│   └── test_idempotency.py      # Uma chave de idempotência repetida é respondida uma só vez
+│   ├── test_idempotency.py      # Uma chave de idempotência repetida é respondida uma só vez
+│   └── test_hardening.py        # Cargas hostis, respostas honestas, ciclo MQTT blindado
 ├── tools/
 │   ├── build_test.py            # Executor de compilação + testes que não altera nada (build-test.bat/.sh)
 │   ├── inspect_print_artifact.py # CLI de JSON de evidência de artefactos local
@@ -133,23 +134,24 @@ bash build-test.sh
 bash build.sh
 ```
 
-`build-test` compila com `py_compile` cada módulo em `src/` e `tools/` e executa a suíte `unittest` completa descoberta em `tests/` (`test_moonraker.py`, `test_artifacts.py`, `test_profiles.py`, `test_mqtt_transport.py` - 80 testes), que prova, entre tudo o resto que cobre, a análise das respostas de prontidão, a inspeção de artefactos e a porta de falha segura; não envia G-code, não toca em nenhuma impressora e nunca modifica o repositório. `build` executa primeiro essa mesma validação e, só se correr bem, chama `tools/bump_version.py` para sincronizar a versão em `pyproject.toml`, `hydra-umc.project.json` e `CHANGELOG.md`. Ainda não há comando `run` de impressora viva: exige um perfil testado, autenticação e uma revisão de segurança física.
+`build-test` compila com `py_compile` cada módulo em `src/` e `tools/` e executa a suíte `unittest` completa descoberta em `tests/` (`test_moonraker.py`, `test_artifacts.py`, `test_profiles.py`, `test_mqtt_transport.py`, `test_hardening.py`, `test_idempotency.py`, `test_mqtt_environment.py` - 103 testes), que prova, entre tudo o resto que cobre, a análise das respostas de prontidão, a inspeção de artefactos e a porta de falha segura; não envia G-code, não toca em nenhuma impressora e nunca modifica o repositório. `build` executa primeiro essa mesma validação e, só se correr bem, chama `tools/bump_version.py` para sincronizar a versão em `pyproject.toml`, `hydra-umc.project.json` e `CHANGELOG.md`. Ainda não há comando `run` de impressora viva: exige um perfil testado, autenticação e uma revisão de segurança física.
 
 Para inspecionar uma saída local de um fatiador sem contactar uma impressora:
 
 ```bash
-py tools/inspect_print_artifact.py path/to/job.gcode
+py tools/inspect_print_artifact.py path/to/job.gcode      # Windows
+python3 tools/inspect_print_artifact.py path/to/job.gcode  # Linux / macOS
 ```
 
 ---
 
 ## ✅ Estado atual e próximos passos
 
-**Real hoje:** versão `0.1.5`, um adaptador de prontidão do Moonraker testado localmente (`MoonrakerProbe` + `PrinterBridge`) apoiado pela porta de trabalhos partilhada do `HYDRA-UMC-SDK`, comandos de trabalho reais protegidos pelo SDK (`MoonrakerJobControl`: iniciar/pausar/retomar/cancelar um ficheiro já carregado pela API REST do próprio Moonraker), evidência só de leitura de G-code/3MF/fatias de resina e de compatibilidade de perfis para as principais famílias de fatiadores, uma suíte `unittest` determinista de setenta e seis testes que inclui HTTP local `/printer/info`, o contrato real e separado `/printer/objects/query?print_stats=state` e a verificação real de comandos de trabalho por `POST`, e scripts build-test que não alteram nada ligados ao CI com um checkout do SDK.
+**Real hoje:** versão `0.1.6`, um adaptador de prontidão do Moonraker testado localmente (`MoonrakerProbe` + `PrinterBridge`) apoiado pela porta de trabalhos partilhada do `HYDRA-UMC-SDK`, comandos de trabalho reais protegidos pelo SDK (`MoonrakerJobControl`: iniciar/pausar/retomar/cancelar um ficheiro já carregado pela API REST do próprio Moonraker), evidência só de leitura de G-code/3MF/fatias de resina e de compatibilidade de perfis para as principais famílias de fatiadores, uma suíte `unittest` determinista de 103 testes que inclui HTTP local `/printer/info`, o contrato real e separado `/printer/objects/query?print_stats=state` e a verificação real de comandos de trabalho por `POST`, e scripts build-test que não alteram nada ligados ao CI com um checkout do SDK.
 
 **Fronteira de integração:** o firmware nativo da impressora (Klipper através do Moonraker) mantém em todo o momento o movimento, os aquecedores, a proteção térmica e os interlocks da máquina; este bridge lê a prontidão, envia apenas comandos de nível de trabalho já seguros (nunca G-code em bruto) e regula o trabalho robótico *auxiliar* à sua volta.
 
-**Ainda por fazer:** o bridge ainda não foi exercitado contra uma impressora, um hotend ou um robô reais (só contra um servidor HTTP local de fixture): o envio de G-code em bruto continua a exigir primeiro um perfil de impressora testado, autenticação e uma revisão de segurança física.
+**Ainda por fazer:** o bridge ainda não foi exercitado contra uma impressora, um hotend ou um robô reais (só contra um servidor HTTP local de fixture): uma primeira execução numa impressora real continua a exigir primeiro um perfil de impressora testado e uma revisão de segurança física; o envio de G-code em bruto não está implementado, de propósito.
 
 ---
 
@@ -158,7 +160,7 @@ py tools/inspect_print_artifact.py path/to/job.gcode
 Este projeto faz parte do ecossistema de robótica HYDRA-UMC do mesmo autor (JuanenRac / Electro Hobby 3D). Vale a pena conhecê-los, porque um pedido pode ser, na verdade, sobre um destes e não sobre este repositório.
 
 **Projeto-mãe**
-- **[HYDRA-UMC-SERVER](https://github.com/JuanenRac/HYDRA-UMC-SERVER)** — o verdadeiro backend sem interface (REST/WebSocket) com que falam todos os clientes de controlo; a fronteira autenticada do ecossistema a que este bridge reporta depois de cada comando ter passado pela porta de segurança local do próprio bridge.
+- **[HYDRA-UMC-SERVER](https://github.com/JuanenRac/HYDRA-UMC-SERVER)** — o verdadeiro backend sem interface (REST/WebSocket) com que falam todos os clientes de controlo; este bridge não o chama: responde por MQTT, através do HYDRA-UMC-MQTT-BROKER, a quem comanda a célula.
 
 **Projetos irmãos** — também falam com a API do próprio HYDRA-UMC-SERVER, cada um como cliente próprio
 - **[HYDRA-UMC-STUDIO](https://github.com/JuanenRac/HYDRA-UMC-STUDIO)** — painel web de controlo com visualização 3D em tempo real de vários robôs.
@@ -261,5 +263,5 @@ Este projeto faz parte do ecossistema de robótica HYDRA-UMC do mesmo autor (Jua
 📺 [youtube.com/@electrohobby3d](https://youtube.com/@electrohobby3d)
 
 ## 📜 LICENÇA
-GPL-3.0 - consulte LICENSE para mais detalhes.
+GPL-3.0-or-later - consulte LICENSE para mais detalhes.
 

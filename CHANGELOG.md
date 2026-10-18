@@ -6,6 +6,23 @@ GPL-3.0-or-later - see LICENSE
 
 # Changelog
 
+## [0.1.6] - A hostile payload can no longer stop the bridge, a stop never waits, and the answers say what was done
+
+- **The loop survives anything a client sends.** A deeply nested JSON (a few kilobytes of `[` raised `RecursionError`, which escaped and ended `loop_forever()`), a payload larger than 16 KiB, an unreadable payload and any unexpected failure while handling a message are now answered with a refusal on the verb's result topic. Nothing a message does can end the loop.
+- **A stop never waits.** Messages are handled off the network thread; `cmd/pause`, `cmd/cancel` and the new `cmd/emergency_stop` have a lane of their own, so a slow Moonraker answering a start or a status request does not delay them.
+- **New `cmd/emergency_stop`.** Calls Moonraker's `POST /printer/emergency_stop` (Klipper M112: heaters and motors off at once). It is never gated and never deduplicated; a `FIRMWARE_RESTART` afterwards stays a human decision.
+- **One idempotency key space per verb.** Asking the gate with `cmd/job` and then starting with the same job (the same key) used to answer the start with the gate's stored "allowed" and never reach Moonraker. Keys are now `job:<key>` and `start:<key>`. A failure after a key was claimed leaves an explicit "could not be handled" answer for that key instead of a silent "already handled".
+- **`cmd/job` answers say what they are.** The result carries `"mode": "gate-only"`; an `ABORT` through that topic says `"forwarded": false` and that nothing was stopped, and points to `cmd/cancel` and `cmd/emergency_stop`.
+- **Moonraker API key.** `MoonrakerProbe` and `MoonrakerJobControl` take an `api_key` (the bridge reads `MOONRAKER_API_KEY` when none is given) and send it as `X-Api-Key`. A 401 or 403 is reported as refused credentials instead of "unreachable".
+- **Safer start.** The file name is checked by path components (a legitimate `part..v2.gcode` is no longer refused; `..` and `.` components, a leading `/` or `~`, backslashes, control characters and anything that is not a G-code file are), and Moonraker must know the file (`/server/files/metadata`) or no start is sent. A Moonraker URL with a query or a fragment is refused.
+- **Klippy `startup` is `OFFLINE`**, not `FAULT`: it is the normal, brief state after a `FIRMWARE_RESTART`.
+- **A retained state can be judged.** `state` carries `observed_at` (epoch milliseconds); `availability` is `online` once connected and the broker publishes `offline` (Last Will) when the bridge dies; the reconnect delay is bounded.
+- **paho-mqtt.** The client uses the version 2 callback API (`mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, ...)`), which also starts with paho-mqtt 2.0; the extra now requires `paho-mqtt>=2.1,<3`.
+- `inspect_artifact()` accepts an optional `max_bytes` and refuses a larger file instead of hashing it.
+- `LICENSE` now carries the complete GPL-3.0 text; the unused `subprocess` import of `tools/ci_validate.py` is gone.
+- README (all eight languages) and `docs/` updated: test counts and test file list, the Spanish, German, French, Italian, Japanese, Chinese and Portuguese introductions no longer say the bridge only reads, the HYDRA-UMC-SERVER path that does not exist is no longer drawn, and the artifact commands show `python3` as well as `py`.
+- 23 new tests (`tests/test_hardening.py`).
+
 ## [0.1.5] - Connects to a broker that demands credentials: user, password and TLS from the environment
 
 - The MQTT client now takes its credentials and TLS from the environment of the service (`HYDRA_MQTT_USERNAME`, `HYDRA_MQTT_PASSWORD` or `HYDRA_MQTT_PASSWORD_FILE`, `HYDRA_MQTT_TLS_CA`) through `hydra_umc_sdk.mqtt_connection`, so it can reach a production HYDRA-UMC-MQTT-BROKER, which refuses anonymous clients and evaluates its ACL for the identity of the credential.
