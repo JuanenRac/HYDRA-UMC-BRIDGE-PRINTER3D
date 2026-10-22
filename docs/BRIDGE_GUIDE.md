@@ -23,7 +23,7 @@ FDM artifact evidence supports ordinary G-code from OrcaSlicer, Ultimaker Cura, 
 | Script | Purpose | Changes version/CHANGELOG? |
 |---|---|---|
 | `build-test.bat` / `build-test.sh` | Compile and run offline adapter tests | No |
-| `build.bat` / `build.sh` | Validate, then increment version and CHANGELOG | Yes, after success |
+| `build.bat` / `build.sh` | Validate, then build (never changes the version or the CHANGELOG) | No |
 | `tools/inspect_print_artifact.py` | Print JSON evidence for one local artifact | No |
 | `tools/assess_print_profile.py` | Compare local profile JSON and artifact; never authorizes execution | No |
 
