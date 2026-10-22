@@ -236,7 +236,7 @@ class PrinterBridge:
 
     def plan(self, job: BridgeJob, cell_state: CellState, printer: PrinterStatus) -> GateDecision:
         observed = BridgeJob(job.job_id, job.idempotency_key, job.source, job.phase, printer.state, job.parameters)
-        return evaluate_job(observed, cell_state)
+        return evaluate_job(observed, cell_state, printer.state)
 
 
 @dataclass(frozen=True)
