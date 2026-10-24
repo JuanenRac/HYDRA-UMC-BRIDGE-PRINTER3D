@@ -32,7 +32,7 @@ GPL-3.0-or-later - see LICENSE
 
 | | |
 |---|---|
-| Version | `0.1.8` |
+| Version | `0.1.9` |
 | Reifegrad | Funktionsfähig |
 | Tests | 103 (`python tools/build_test.py`) |
 | Technik | Python / Moonraker / Klipper / G-code / 3MF |
@@ -160,7 +160,7 @@ python3 tools/inspect_print_artifact.py pfad/zum/auftrag.gcode  # Linux / macOS
 
 ## ✅ AKTUELLER STATUS UND NÄCHSTE SCHRITTE
 
-**Heute real:** Version `0.1.8`, ein lokal getesteter Moonraker-Bereitschaftsadapter (`MoonrakerProbe` + `PrinterBridge`), gestützt auf das gemeinsame Auftragsgatter von `HYDRA-UMC-SDK`, echte, SDK-gegatterte Auftragsbefehle (`MoonrakerJobControl`: eine bereits hochgeladene Datei über Moonrakers eigene REST-API starten/pausieren/fortsetzen/abbrechen), schreibgeschützte Evidenz für G-Code/3MF/Resin-Slice-Artefakte und Profilkompatibilität für die wichtigsten Slicer-Familien, eine deterministische `unittest`-Suite mit 103 Tests einschließlich der lokalen HTTP-Vertragsprüfung `/printer/info`, dem echten, separaten Vertrag `/printer/objects/query?print_stats=state` und echter `POST`-Auftragsbefehl-Verifikation, sowie nicht-mutierende Build-Test-Skripte, die in CI mit SDK-Checkout eingebunden sind.
+**Heute real:** Version `0.1.9`, ein lokal getesteter Moonraker-Bereitschaftsadapter (`MoonrakerProbe` + `PrinterBridge`), gestützt auf das gemeinsame Auftragsgatter von `HYDRA-UMC-SDK`, echte, SDK-gegatterte Auftragsbefehle (`MoonrakerJobControl`: eine bereits hochgeladene Datei über Moonrakers eigene REST-API starten/pausieren/fortsetzen/abbrechen), schreibgeschützte Evidenz für G-Code/3MF/Resin-Slice-Artefakte und Profilkompatibilität für die wichtigsten Slicer-Familien, eine deterministische `unittest`-Suite mit 103 Tests einschließlich der lokalen HTTP-Vertragsprüfung `/printer/info`, dem echten, separaten Vertrag `/printer/objects/query?print_stats=state` und echter `POST`-Auftragsbefehl-Verifikation, sowie nicht-mutierende Build-Test-Skripte, die in CI mit SDK-Checkout eingebunden sind.
 
 **Integrationsgrenze:** die native Drucker-Firmware (Klipper über Moonraker) behält jederzeit Bewegung, Heizelemente, thermischen Schutz und Maschinenverriegelungen; diese Brücke liest die Bereitschaft, sendet nur bereits sichere Befehle auf Auftragsebene (nie rohen G-Code) und steuert *Hilfs*-Roboterarbeit rund darum.
 
