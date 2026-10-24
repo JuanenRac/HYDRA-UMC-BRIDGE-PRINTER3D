@@ -121,13 +121,18 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   ├── test_mqtt_transport.py   # MQTT-Befehls-/Statusform-Tests gegen einen simulierten Broker-Client
 │   ├── test_mqtt_environment.py # Die MQTT-Zugangsdaten und TLS der Dienstumgebung erreichen den Client
 │   ├── test_idempotency.py      # Ein wiederholter Idempotenzschlüssel wird nur einmal beantwortet
-│   └── test_hardening.py        # Feindliche Nutzlasten, ehrliche Antworten, gehärtete MQTT-Schleife
+│   ├── test_hardening.py        # Feindliche Nutzlasten, ehrliche Antworten, gehärtete MQTT-Schleife
+│   └── test_edge_cases.py       # Stopp-Befehle, Zugangsdaten, Dateinamen und Grenzen der Artefakte
 ├── tools/
 │   ├── build_test.py            # Nicht-mutierender Compiler + Testläufer (build-test.bat/.sh)
 │   ├── inspect_print_artifact.py # Lokale Artefakt-Evidenz als JSON-CLI
 │   ├── assess_print_profile.py  # Offline-CLI für Profil-/Artefaktabgleich; autorisiert nie eine Ausführung
 │   ├── ci_validate.py           # Abhängigkeitsfreie, nicht-destruktive CI-Basislinie (verwendet von .github/workflows/ci.yml)
-│   └── bump_version.py          # Synchronisiert pyproject.toml, Manifest und CHANGELOG.md
+│   ├── bump_version.py          # Synchronisiert pyproject.toml, Manifest und CHANGELOG.md
+│   ├── _doc_policy.py           # Von der Familie geteilte Dokumentationsregeln (Kopie der von HYDRA-UMC-SDK, synchron gehalten)
+│   ├── _readme_parity.py        # Prüfung, dass die acht READMEs dieselbe Struktur haben (Kopie der von HYDRA-UMC-SDK, synchron gehalten)
+│   ├── hydra_project_tool.py    # Dieselben Befehle in jedem Repository: validate, test, ci, version, status, bump
+│   └── extra_build_steps.py     # Die eigenen Build-Schritte dieses Repositorys neben dem gemeinsamen Build-Test (seine Unit-Tests)
 ├── docs/
 │   ├── BRIDGE_GUIDE.md                        # Umfang, kompatible Plattformen, Skripte, Hardware-Abnahmegatter
 │   ├── PRINT_PROFILE_BOUNDARY.md              # Was Profilkompatibilitäts-Evidenz bedeutet vs. Druckautorisierung

@@ -121,13 +121,18 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   ├── test_mqtt_transport.py   # Test di forma comando/stato MQTT contro un client broker fittizio
 │   ├── test_mqtt_environment.py # Le credenziali MQTT e il TLS dell'ambiente del servizio arrivano al client
 │   ├── test_idempotency.py      # Una chiave di idempotenza ripetuta riceve una sola risposta
-│   └── test_hardening.py        # Payload ostili, risposte oneste, ciclo MQTT blindato
+│   ├── test_hardening.py        # Payload ostili, risposte oneste, ciclo MQTT blindato
+│   └── test_edge_cases.py       # Comandi di arresto, credenziali, nomi di file e limiti degli artefatti
 ├── tools/
 │   ├── build_test.py            # Compilatore + esecutore di test non mutante (build-test.bat/.sh)
 │   ├── inspect_print_artifact.py # CLI JSON dell'evidenza locale dell'artefatto
 │   ├── assess_print_profile.py  # CLI di confronto profilo/artefatto offline; non autorizza mai l'esecuzione
 │   ├── ci_validate.py           # Base CI priva di dipendenze e non distruttiva (usata da .github/workflows/ci.yml)
-│   └── bump_version.py          # Sincronizza pyproject.toml, manifesto e CHANGELOG.md
+│   ├── bump_version.py          # Sincronizza pyproject.toml, manifesto e CHANGELOG.md
+│   ├── _doc_policy.py           # Regole di documentazione condivise dalla famiglia (copia di quella di HYDRA-UMC-SDK, mantenuta sincronizzata)
+│   ├── _readme_parity.py        # Verifica che gli otto README abbiano la stessa struttura (copia di quella di HYDRA-UMC-SDK, mantenuta sincronizzata)
+│   ├── hydra_project_tool.py    # Gli stessi comandi in ogni repository: validate, test, ci, version, status, bump
+│   └── extra_build_steps.py     # I passi di compilazione propri di questo repository oltre al test di compilazione condiviso (i suoi unit test)
 ├── docs/
 │   ├── BRIDGE_GUIDE.md                        # Ambito, piattaforme compatibili, script, porta di accettazione hardware
 │   ├── PRINT_PROFILE_BOUNDARY.md              # Cosa significa l'evidenza di compatibilità del profilo rispetto all'autorizzazione di stampa

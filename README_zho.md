@@ -121,13 +121,18 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   ├── test_mqtt_transport.py   # 针对模拟 broker 客户端的 MQTT 命令/状态格式测试
 │   ├── test_mqtt_environment.py # 服务环境中的 MQTT 凭据和 TLS 会传到客户端
 │   ├── test_idempotency.py      # 重复的幂等键只处理一次
-│   └── test_hardening.py        # 恶意负载、诚实的回复、加固的 MQTT 循环
+│   ├── test_hardening.py        # 恶意负载、诚实的回复、加固的 MQTT 循环
+│   └── test_edge_cases.py       # 停止命令、凭据、文件名和产物边界
 ├── tools/
 │   ├── build_test.py            # 非变更式编译 + 测试运行器 (build-test.bat/.sh)
 │   ├── inspect_print_artifact.py # 本地产物证据 JSON CLI
 │   ├── assess_print_profile.py  # 离线配置文件与产物比对 CLI;从不授权执行
 │   ├── ci_validate.py           # 无依赖、非破坏性的CI基线检查 (由 .github/workflows/ci.yml 使用)
-│   └── bump_version.py          # 同步 pyproject.toml、清单和 CHANGELOG.md
+│   ├── bump_version.py          # 同步 pyproject.toml、清单和 CHANGELOG.md
+│   ├── _doc_policy.py           # 家族共享的文档规则 (HYDRA-UMC-SDK 的副本,保持同步)
+│   ├── _readme_parity.py        # 检查八个 README 结构一致 (HYDRA-UMC-SDK 的副本,保持同步)
+│   ├── hydra_project_tool.py    # 每个仓库相同的命令: validate、test、ci、version、status、bump
+│   └── extra_build_steps.py     # 除共享构建测试外,本仓库自己的构建步骤 (自带的单元测试)
 ├── docs/
 │   ├── BRIDGE_GUIDE.md                        # 范围、兼容平台、脚本、硬件验收门控
 │   ├── PRINT_PROFILE_BOUNDARY.md              # 配置文件兼容性证据相对于打印授权意味着什么

@@ -121,13 +121,18 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   ├── test_mqtt_transport.py   # Testes do formato de comandos/estado MQTT contra um cliente de broker falso
 │   ├── test_mqtt_environment.py # As credenciais MQTT e o TLS do ambiente do serviço chegam ao cliente
 │   ├── test_idempotency.py      # Uma chave de idempotência repetida é respondida uma só vez
-│   └── test_hardening.py        # Cargas hostis, respostas honestas, ciclo MQTT blindado
+│   ├── test_hardening.py        # Cargas hostis, respostas honestas, ciclo MQTT blindado
+│   └── test_edge_cases.py       # Comandos de paragem, credenciais, nomes de ficheiros e limites dos artefactos
 ├── tools/
 │   ├── build_test.py            # Executor de compilação + testes que não altera nada (build-test.bat/.sh)
 │   ├── inspect_print_artifact.py # CLI de JSON de evidência de artefactos local
 │   ├── assess_print_profile.py  # CLI offline de correspondência perfil/artefacto; nunca autoriza a execução
 │   ├── ci_validate.py           # Base de CI sem dependências e não destrutiva (usada por .github/workflows/ci.yml)
-│   └── bump_version.py          # Sincroniza pyproject.toml, o manifesto e CHANGELOG.md
+│   ├── bump_version.py          # Sincroniza pyproject.toml, o manifesto e CHANGELOG.md
+│   ├── _doc_policy.py           # Regras de documentação partilhadas pela família (cópia da de HYDRA-UMC-SDK, mantida em sincronia)
+│   ├── _readme_parity.py        # Verificação de que os oito README partilham a mesma estrutura (cópia da de HYDRA-UMC-SDK, mantida em sincronia)
+│   ├── hydra_project_tool.py    # Os mesmos comandos em todos os repositórios: validate, test, ci, version, status, bump
+│   └── extra_build_steps.py     # Os passos de compilação próprios deste repositório além do teste de compilação partilhado (os seus testes unitários)
 ├── docs/
 │   ├── BRIDGE_GUIDE.md                        # Âmbito, plataformas compatíveis, scripts, porta de aceitação de hardware
 │   ├── PRINT_PROFILE_BOUNDARY.md              # O que significa a evidência de compatibilidade de perfis face à autorização de impressão

@@ -121,13 +121,18 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   ├── test_mqtt_transport.py   # Tests de forme commande/état MQTT contre un client broker simulé
 │   ├── test_mqtt_environment.py # Les identifiants MQTT et le TLS de l'environnement du service atteignent le client
 │   ├── test_idempotency.py      # Une clé d'idempotence répétée n'est traitée qu'une fois
-│   └── test_hardening.py        # Charges hostiles, réponses honnêtes, boucle MQTT durcie
+│   ├── test_hardening.py        # Charges hostiles, réponses honnêtes, boucle MQTT durcie
+│   └── test_edge_cases.py       # Commandes d'arrêt, identifiants, noms de fichiers et limites des artefacts
 ├── tools/
 │   ├── build_test.py            # Compilateur + lanceur de tests non mutant (build-test.bat/.sh)
 │   ├── inspect_print_artifact.py # CLI JSON d'évidence locale de l'artefact
 │   ├── assess_print_profile.py  # CLI de comparaison profil/artefact hors ligne ; n'autorise jamais l'exécution
 │   ├── ci_validate.py           # Base CI sans dépendances et non destructive (utilisée par .github/workflows/ci.yml)
-│   └── bump_version.py          # Synchronise pyproject.toml, manifeste et CHANGELOG.md
+│   ├── bump_version.py          # Synchronise pyproject.toml, manifeste et CHANGELOG.md
+│   ├── _doc_policy.py           # Règles de documentation partagées par la famille (copie de celle de HYDRA-UMC-SDK, tenue synchronisée)
+│   ├── _readme_parity.py        # Contrôle que les huit README partagent la même structure (copie de celui de HYDRA-UMC-SDK, tenue synchronisée)
+│   ├── hydra_project_tool.py    # Les mêmes commandes dans chaque dépôt : validate, test, ci, version, status, bump
+│   └── extra_build_steps.py     # Les étapes de compilation propres à ce dépôt en plus du test de compilation partagé (ses tests unitaires)
 ├── docs/
 │   ├── BRIDGE_GUIDE.md                        # Portée, plateformes compatibles, scripts, portail d'acceptation matérielle
 │   ├── PRINT_PROFILE_BOUNDARY.md              # Ce que signifie la preuve de compatibilité de profil face à l'autorisation d'impression

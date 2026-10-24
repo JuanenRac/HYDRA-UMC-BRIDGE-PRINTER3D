@@ -121,13 +121,18 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   ├── test_mqtt_transport.py   # Tests de forma de comando/estado MQTT contra un cliente de broker simulado
 │   ├── test_mqtt_environment.py # Las credenciales MQTT y el TLS del entorno del servicio llegan al cliente
 │   ├── test_idempotency.py      # Una clave de idempotencia repetida se responde una sola vez
-│   └── test_hardening.py        # Cargas hostiles, respuestas honestas, bucle MQTT blindado
+│   ├── test_hardening.py        # Cargas hostiles, respuestas honestas, bucle MQTT blindado
+│   └── test_edge_cases.py       # Órdenes de parada, credenciales, nombres de fichero y límites de los artefactos
 ├── tools/
 │   ├── build_test.py            # Compilador + ejecutor de pruebas no mutante (build-test.bat/.sh)
 │   ├── inspect_print_artifact.py # CLI JSON de evidencia local del artefacto
 │   ├── assess_print_profile.py  # CLI de comparación perfil-artefacto sin conexión; nunca autoriza ejecución
 │   ├── ci_validate.py           # Línea base de CI sin dependencias y no destructiva (usada por .github/workflows/ci.yml)
-│   └── bump_version.py          # Sincroniza pyproject.toml, manifiesto y CHANGELOG.md
+│   ├── bump_version.py          # Sincroniza pyproject.toml, manifiesto y CHANGELOG.md
+│   ├── _doc_policy.py           # Reglas de documentación compartidas por la familia (copia de la de HYDRA-UMC-SDK, mantenida en sincronía)
+│   ├── _readme_parity.py        # Comprobación de que los ocho README comparten estructura (copia de la de HYDRA-UMC-SDK, mantenida en sincronía)
+│   ├── hydra_project_tool.py    # Los mismos comandos en todos los repositorios: validate, test, ci, version, status, bump
+│   └── extra_build_steps.py     # Los pasos de compilación propios de este repositorio además de la prueba de compilación compartida (sus tests unitarios)
 ├── docs/
 │   ├── BRIDGE_GUIDE.md                        # Alcance, plataformas compatibles, scripts, puerta de aceptación de hardware
 │   ├── PRINT_PROFILE_BOUNDARY.md              # Qué significa la evidencia de compatibilidad de perfiles frente a la autorización de impresión

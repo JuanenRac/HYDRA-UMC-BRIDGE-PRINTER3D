@@ -121,13 +121,18 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   ├── test_mqtt_transport.py   # 疑似ブローカークライアントに対するMQTTコマンド/ステータス形状テスト
 │   ├── test_mqtt_environment.py # サービス環境の MQTT 認証情報と TLS がクライアントに届く
 │   ├── test_idempotency.py      # 重複した冪等キーには一度だけ応答する
-│   └── test_hardening.py        # 悪意あるペイロード、正直な応答、堅牢化したMQTTループ
+│   ├── test_hardening.py        # 悪意あるペイロード、正直な応答、堅牢化したMQTTループ
+│   └── test_edge_cases.py       # 停止コマンド、認証情報、ファイル名、成果物の境界
 ├── tools/
 │   ├── build_test.py            # 非破壊的なコンパイル+テストランナー (build-test.bat/.sh)
 │   ├── inspect_print_artifact.py # ローカル成果物証拠JSON CLI
 │   ├── assess_print_profile.py  # オフラインのプロファイル・成果物照合CLI。実行を許可することはない
 │   ├── ci_validate.py           # 依存関係なし・非破壊のCIベースライン (.github/workflows/ci.yml が使用)
-│   └── bump_version.py          # pyproject.toml、マニフェスト、CHANGELOG.md を同期
+│   ├── bump_version.py          # pyproject.toml、マニフェスト、CHANGELOG.md を同期
+│   ├── _doc_policy.py           # ファミリー共通のドキュメント規則 (HYDRA-UMC-SDK のコピーで、同期を維持)
+│   ├── _readme_parity.py        # 8つの README が同じ構造であることの検査 (HYDRA-UMC-SDK のコピーで、同期を維持)
+│   ├── hydra_project_tool.py    # すべてのリポジトリで共通のコマンド: validate、test、ci、version、status、bump
+│   └── extra_build_steps.py     # 共通のビルドテストに加えた、このリポジトリ固有のビルド手順 (独自のユニットテスト)
 ├── docs/
 │   ├── BRIDGE_GUIDE.md                        # 適用範囲、対応プラットフォーム、スクリプト、ハードウェア受け入れゲート
 │   ├── PRINT_PROFILE_BOUNDARY.md              # プロファイル互換性の証拠が印刷許可に対して意味すること
