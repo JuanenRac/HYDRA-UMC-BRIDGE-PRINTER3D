@@ -39,6 +39,19 @@ GPL-3.0-or-later - see LICENSE
 | Ziel | Der Raspberry Pi CM5 einer HYDRA-UMC-Zelle |
 | Auf echter Hardware | Nur simuliert: gegen Emulatoren, Attrappen oder Simulatoren getestet; für diese Version ist kein Lauf auf echter Hardware vermerkt |
 
+## 🚦 Projektstatus
+
+Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heute ist. Sie beruht auf dem, was das Repository zeigen kann (Tests, Builds, Läufe), nicht auf dem, was geplant ist.
+
+🟢 Fertig und überprüft · 🟡 Funktioniert, mit bekannten Grenzen · 🟠 Teilweise fertig oder noch nicht überprüft · 🔴 Nicht gemacht oder funktioniert nicht
+
+| Bereich | Stand | Was das hier bedeutet |
+|---|---|---|
+| Software | 🟡 | Funktioniert für seinen Hauptzweck; die Ehrlichkeitsprüfung oben nennt, was noch fehlt |
+| Tests | 🟢 | 103 automatische Tests, bei jeder Änderung ausgeführt |
+| Echte Hardware | 🟠 | Nur simuliert: gegen Emulatoren, Attrappen oder Simulatoren getestet; für diese Version ist kein Lauf auf echter Hardware vermerkt |
+| Dokumentation | 🟢 | README in acht Sprachen, bei jeder Änderung gegen das Manifest geprüft |
+
 ## 1. 🛠️ TECHNISCHER ÜBERBLICK
 
 **HYDRA-UMC-BRIDGE-PRINTER3D** ist der High-Level-Koordinator für offene 3D-Drucksoftware (Moonraker/Klipper) und HYDRA-UMC-Roboterhilfsfunktionen. Sie erkennt außerdem lokale Slicer-Artefakte schreibgeschützt und kann SDK-gesteuerte Auftragsbefehle (Start/Pause/Fortsetzen/Abbrechen einer bereits hochgeladenen, bereits geslicten Datei sowie einen harten Not-Halt) über die eigene REST-API von Moonraker senden; die Tests nutzen einen lokalen HTTP-Server, und kein echter Drucker hat je einen erhalten. Die native Drucker-Firmware bleibt jederzeit verantwortlich für Bewegung, Heizelemente, thermischen Schutz und Maschinenverriegelungen — diese Brücke streamt nie rohen G-Code und ersetzt diese Autorität nie; sie liest nur die Bereitschaft, erfasst Artefakt-Evidenz, sendet bereits sichere Befehle auf Auftragsebene und koordiniert Hilfsfunktionen darum herum.
