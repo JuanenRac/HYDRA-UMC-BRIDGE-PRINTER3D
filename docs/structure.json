@@ -1,0 +1,283 @@
+{
+  "repo": "HYDRA-UMC-BRIDGE-PRINTER3D",
+  "ecosystem": "hydra",
+  "svg": "en",
+  "cards": [
+    {
+      "name": "src/hydra_umc_bridge_printer3d/",
+      "span": 3,
+      "accent": "a",
+      "sub": {
+        "en": "the bridge, in Python",
+        "es": "el bridge, en Python",
+        "de": "der Bridge in Python",
+        "fr": "le bridge, en Python",
+        "it": "il bridge, in Python",
+        "ja": "Python のブリッジ",
+        "zh": "用 Python 编写的桥接",
+        "pt": "o bridge, em Python"
+      },
+      "rows": [
+        {
+          "name": "moonraker.py",
+          "desc": {
+            "en": "printer readiness and gated job control",
+            "es": "estado de la impresora y control de trabajos con puerta",
+            "de": "Druckerbereitschaft und gesteuerte Auftragskontrolle",
+            "fr": "état de l'imprimante et contrôle des travaux avec porte",
+            "it": "stato della stampante e controllo lavori con porta",
+            "ja": "プリンターの準備状態とゲート付きジョブ制御",
+            "zh": "打印机就绪状态与受关口约束的任务控制",
+            "pt": "estado da impressora e controlo de trabalhos com porta"
+          }
+        },
+        {
+          "name": "artifacts.py",
+          "desc": {
+            "en": "identify print files, never unpack them",
+            "es": "identifica ficheros de impresión, nunca los desempaqueta",
+            "de": "erkennt Druckdateien, packt sie nie aus",
+            "fr": "identifie les fichiers d'impression, sans les décompresser",
+            "it": "identifica i file di stampa, mai li decomprime",
+            "ja": "印刷ファイルを識別（展開はしない）",
+            "zh": "识别打印文件，从不解包",
+            "pt": "identifica ficheiros de impressão, nunca os descompacta"
+          }
+        },
+        {
+          "name": "profiles.py",
+          "desc": {
+            "en": "match evidence to a declared profile",
+            "es": "casa la evidencia con un perfil declarado",
+            "de": "ordnet Nachweise einem erklärten Profil zu",
+            "fr": "associe la preuve à un profil déclaré",
+            "it": "associa la prova a un profilo dichiarato",
+            "ja": "証拠を宣言済みプロファイルと照合",
+            "zh": "把证据与已声明的配置匹配",
+            "pt": "associa a evidência a um perfil declarado"
+          }
+        },
+        {
+          "name": "mqtt_transport.py",
+          "desc": {
+            "en": "MQTT command and status transport",
+            "es": "transporte MQTT de órdenes y estado",
+            "de": "MQTT-Transport für Befehle und Status",
+            "fr": "transport MQTT des commandes et de l'état",
+            "it": "trasporto MQTT di comandi e stato",
+            "ja": "MQTT のコマンド・状態トランスポート",
+            "zh": "MQTT 命令与状态传输",
+            "pt": "transporte MQTT de comandos e estado"
+          }
+        }
+      ]
+    },
+    {
+      "name": {
+        "en": "tests, docs and tools",
+        "es": "pruebas, docs y herramientas",
+        "de": "Tests, Doku und Werkzeuge",
+        "fr": "tests, docs et outils",
+        "it": "test, documenti e strumenti",
+        "ja": "テスト・文書・ツール",
+        "zh": "测试、文档和工具",
+        "pt": "testes, docs e ferramentas"
+      },
+      "kind": "group",
+      "span": 3,
+      "accent": "b",
+      "columns": 2,
+      "rows": [
+        {
+          "name": "tests/",
+          "desc": {
+            "en": "125 tests, against a local Moonraker stand-in",
+            "es": "125 pruebas, contra un sustituto local de Moonraker",
+            "de": "125 Tests, gegen einen lokalen Moonraker-Ersatz",
+            "fr": "125 tests, contre un substitut local de Moonraker",
+            "it": "125 test, contro un sostituto locale di Moonraker",
+            "ja": "125 件（ローカルの Moonraker 代替相手）",
+            "zh": "125 项测试（针对本地 Moonraker 替身）",
+            "pt": "125 testes, contra um substituto local do Moonraker"
+          }
+        },
+        {
+          "name": "docs/",
+          "desc": {
+            "en": "bridge guide, profile boundary, slicer files",
+            "es": "guía del bridge, límite de perfiles, ficheros de laminador",
+            "de": "Bridge-Leitfaden, Profilgrenze, Slicer-Dateien",
+            "fr": "guide du bridge, limite des profils, fichiers de slicer",
+            "it": "guida del bridge, limite dei profili, file dello slicer",
+            "ja": "ブリッジガイド、プロファイルの境界、スライサーのファイル",
+            "zh": "桥接指南、配置边界、切片文件",
+            "pt": "guia do bridge, limite de perfis, ficheiros do fatiador"
+          }
+        },
+        {
+          "name": "tools/",
+          "desc": {
+            "en": "project tools, CI checks, version bump",
+            "es": "herramientas del proyecto, comprobaciones de CI, subida de versión",
+            "de": "Projektwerkzeuge, CI-Prüfungen, Versionserhöhung",
+            "fr": "outils du projet, vérifications CI, montée de version",
+            "it": "strumenti del progetto, controlli CI, aumento di versione",
+            "ja": "プロジェクトのツール、CI の検査、バージョンの引き上げ",
+            "zh": "项目工具、CI 检查、版本提升",
+            "pt": "ferramentas do projeto, verificações de CI, subida de versão"
+          },
+          "tree_desc": {
+            "en": "build and test runner, version bump, CI validator, README and picture generators and checks",
+            "es": "ejecutor de compilación y pruebas, subida de versión, validador de CI, generadores y comprobaciones de README e imágenes",
+            "de": "Build- und Testläufer, Versionserhöhung, CI-Prüfer, README- und Bildgeneratoren samt Prüfungen",
+            "fr": "exécuteur de build et de tests, montée de version, validateur CI, générateurs et vérifications des README et des images",
+            "it": "esecutore di build e test, aumento di versione, validatore CI, generatori e controlli di README e immagini",
+            "ja": "ビルド・テスト実行、バージョン引き上げ、CI 検証、README と図の生成・検査",
+            "zh": "构建与测试运行器、版本提升、CI 校验、README 与图片的生成和检查",
+            "pt": "executor de compilação e testes, subida de versão, validador de CI, geradores e verificações de README e imagens"
+          }
+        },
+        {
+          "name": "images/",
+          "desc": {
+            "en": "banner and the pictures of the README",
+            "es": "banner y las imágenes del README",
+            "de": "Banner und die Bilder der README",
+            "fr": "bannière et images du README",
+            "it": "banner e immagini del README",
+            "ja": "バナーと README の図",
+            "zh": "横幅图与 README 的图片",
+            "pt": "faixa e imagens do README"
+          }
+        },
+        {
+          "name": ".github/",
+          "desc": {
+            "en": "CI workflow and issue templates",
+            "es": "flujo de CI y plantillas de incidencias",
+            "de": "CI-Workflow und Issue-Vorlagen",
+            "fr": "workflow CI et modèles de tickets",
+            "it": "workflow CI e modelli di segnalazione",
+            "ja": "CI ワークフローと Issue テンプレート",
+            "zh": "CI 工作流和 Issue 模板",
+            "pt": "fluxo de CI e modelos de questões"
+          }
+        }
+      ]
+    },
+    {
+      "name": {
+        "en": "project files",
+        "es": "ficheros del proyecto",
+        "de": "Projektdateien",
+        "fr": "fichiers du projet",
+        "it": "file del progetto",
+        "ja": "プロジェクトのファイル",
+        "zh": "项目文件",
+        "pt": "ficheiros do projeto"
+      },
+      "kind": "group",
+      "span": 3,
+      "accent": "c",
+      "columns": 2,
+      "rows": [
+        {
+          "name": "pyproject.toml",
+          "desc": {
+            "en": "package metadata and dependencies",
+            "es": "metadatos del paquete y dependencias",
+            "de": "Paketmetadaten und Abhängigkeiten",
+            "fr": "métadonnées du paquet et dépendances",
+            "it": "metadati del pacchetto e dipendenze",
+            "ja": "パッケージのメタデータと依存関係",
+            "zh": "包元数据与依赖",
+            "pt": "metadados do pacote e dependências"
+          }
+        },
+        {
+          "name": "hydra-umc.project.json",
+          "desc": {
+            "en": "manifest: version, maturity, family",
+            "es": "manifiesto: versión, madurez, familia",
+            "de": "Manifest: Version, Reifegrad, Familie",
+            "fr": "manifeste : version, maturité, famille",
+            "it": "manifesto: versione, maturità, famiglia",
+            "ja": "マニフェスト：バージョン・成熟度・ファミリー",
+            "zh": "清单：版本、成熟度、系列",
+            "pt": "manifesto: versão, maturidade, família"
+          }
+        },
+        {
+          "name": "CHANGELOG.md",
+          "desc": {
+            "en": "what changed in each version",
+            "es": "qué cambió en cada versión",
+            "de": "was sich in jeder Version geändert hat",
+            "fr": "ce qui a changé à chaque version",
+            "it": "cosa è cambiato in ogni versione",
+            "ja": "各バージョンの変更点",
+            "zh": "每个版本的变化",
+            "pt": "o que mudou em cada versão"
+          }
+        },
+        {
+          "name": "build.sh  build.bat",
+          "tree_name": "build.sh build.bat",
+          "desc": {
+            "en": "build scripts (they never change the version)",
+            "es": "scripts de compilación (nunca cambian la versión)",
+            "de": "Build-Skripte (ändern die Version nie)",
+            "fr": "scripts de build (ils ne changent jamais la version)",
+            "it": "script di build (non cambiano mai la versione)",
+            "ja": "ビルドスクリプト（バージョンは変えません）",
+            "zh": "构建脚本（从不改变版本）",
+            "pt": "scripts de compilação (nunca mudam a versão)"
+          }
+        },
+        {
+          "name": "build-test.sh  build-test.bat",
+          "tree_name": "build-test.sh build-test.bat",
+          "desc": {
+            "en": "build scripts (they never change the version)",
+            "es": "scripts de compilación (nunca cambian la versión)",
+            "de": "Build-Skripte (ändern die Version nie)",
+            "fr": "scripts de build (ils ne changent jamais la version)",
+            "it": "script di build (non cambiano mai la versione)",
+            "ja": "ビルドスクリプト（バージョンは変えません）",
+            "zh": "构建脚本（从不改变版本）",
+            "pt": "scripts de compilação (nunca mudam a versão)"
+          }
+        },
+        {
+          "name": "test.sh  test.bat",
+          "tree_name": "test.sh test.bat",
+          "desc": {
+            "en": "run the tests",
+            "es": "ejecutan las pruebas",
+            "de": "führen die Tests aus",
+            "fr": "lancent les tests",
+            "it": "eseguono i test",
+            "ja": "テストを実行",
+            "zh": "运行测试",
+            "pt": "executam os testes"
+          }
+        },
+        {
+          "name": "SECURITY  SUPPORT  CONTRIBUTING  LICENSE",
+          "tree_name": "SECURITY.md SUPPORT.md CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE LICENSE.md",
+          "desc": {
+            "en": "community and licence files",
+            "es": "comunidad y licencia",
+            "de": "Community und Lizenz",
+            "fr": "communauté et licence",
+            "it": "comunità e licenza",
+            "ja": "コミュニティとライセンス",
+            "zh": "社区与许可证",
+            "pt": "comunidade e licença"
+          },
+          "tree_desc": ""
+        }
+      ]
+    }
+  ]
+}

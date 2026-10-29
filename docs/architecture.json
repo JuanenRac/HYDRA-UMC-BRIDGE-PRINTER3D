@@ -1,0 +1,116 @@
+{
+  "repo": "HYDRA-UMC-BRIDGE-PRINTER3D",
+  "ecosystem": "hydra",
+  "tagline": "A 3D printer is read and commanded only through the shared gate; print files are only identified.",
+  "description": "HYDRA-UMC-BRIDGE-PRINTER3D reads the readiness of a Moonraker or Klipper printer, passes every job through the shared evaluate_job gate of HYDRA-UMC-SDK and, when the gate allows it, starts, pauses, resumes or cancels the print through Moonraker. It identifies print files without unpacking or running them and never controls firmware or heaters.",
+  "columns": [
+    "WHO COMMANDS IT",
+    "THIS REPOSITORY",
+    "WHAT IT DEPENDS ON"
+  ],
+  "nodes": [
+    {
+      "id": "broker",
+      "column": 0,
+      "level": "external",
+      "title": "HYDRA-UMC-MQTT-BROKER",
+      "lines": [
+        "carries cmd/ and the",
+        "state and result topics"
+      ],
+      "title_size": 12
+    },
+    {
+      "id": "sdk",
+      "column": 0,
+      "level": "contract",
+      "title": "HYDRA-UMC-SDK",
+      "lines": [
+        "evaluate_job(): the gate",
+        "every bridge shares"
+      ]
+    },
+    {
+      "id": "mqtt",
+      "column": 1,
+      "level": "tested",
+      "title": "mqtt_transport.py",
+      "lines": [
+        "PrinterMqttBridge: verbs, stop",
+        "lane, retained state"
+      ],
+      "code": [
+        "src/hydra_umc_bridge_printer3d/mqtt_transport.py::class PrinterMqttBridge"
+      ]
+    },
+    {
+      "id": "moon",
+      "column": 1,
+      "level": "contract",
+      "title": "moonraker.py",
+      "lines": [
+        "MoonrakerProbe reads; job",
+        "control only after the gate"
+      ],
+      "code": [
+        "src/hydra_umc_bridge_printer3d/moonraker.py::class MoonrakerJobControl"
+      ]
+    },
+    {
+      "id": "art",
+      "column": 1,
+      "level": "tested",
+      "title": "artifacts.py, profiles.py",
+      "lines": [
+        "identify files and match a",
+        "profile; never authorise"
+      ],
+      "code": [
+        "src/hydra_umc_bridge_printer3d/artifacts.py",
+        "src/hydra_umc_bridge_printer3d/profiles.py"
+      ]
+    },
+    {
+      "id": "klip",
+      "column": 2,
+      "level": "untested",
+      "title": "Moonraker / Klipper",
+      "lines": [
+        "HTTP API with an optional",
+        "X-Api-Key; no real printer yet"
+      ],
+      "title_size": 12
+    }
+  ],
+  "edges": [
+    {
+      "from": "broker",
+      "to": "mqtt",
+      "label": "cmd/job",
+      "level": "tested"
+    },
+    {
+      "from": "sdk",
+      "to": "moon",
+      "label": "gate",
+      "level": "contract"
+    },
+    {
+      "from": "mqtt",
+      "to": "moon",
+      "level": "tested"
+    },
+    {
+      "from": "moon",
+      "to": "art",
+      "level": "tested"
+    },
+    {
+      "from": "moon",
+      "to": "klip",
+      "label": "HTTP",
+      "level": "untested"
+    }
+  ],
+  "footer": "Tested against a local stand-in for Moonraker; no real printer was driven."
+}
