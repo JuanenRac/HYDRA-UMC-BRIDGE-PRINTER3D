@@ -27,7 +27,7 @@ GPL-3.0-or-later - see LICENSE
 
 > **誠実性チェック - 今日実際に動くもの:** Moonraker のレディネス確認と安全ゲート（`moonraker.py` の `MoonrakerProbe`/`PrinterBridge`。すべてのジョブは `HYDRA-UMC-SDK` 自身の本物の `evaluate_job()` を通過する）、本物の SDK ゲート付きジョブコマンド（`MoonrakerJobControl` の開始/一時停止/再開/キャンセル）、読み取り専用のアーティファクト/プロファイルエビデンス（`artifacts.py`、`profiles.py`）、および MQTT コマンド/状態ブリッジ（`mqtt_transport.py`）は本物であり、125件の通過する `unittest` ケースで検証されている（`python tools/build_test.py`）。Moonraker 向けのテストは、本物の Moonraker REST API の代わりとなる本物のローカル `ThreadingHTTPServer` に対して実行されており、実際のプリンタではない。MQTT 層自身の `connect_with_retry()`/メッセージルーティングロジックは、本物の `paho-mqtt` 接続やブローカーを一度も開かずにテストされている。下記の README に既に記載されている通り、このブリッジはまだ実際のプリンタ、ホットエンド、ロボットに対して検証されていない。生の G-code ストリーミングは意図的に実装されていない - 名前によって開始/一時停止/再開/キャンセルできるのは、既にアップロード済みで既にスライス済みのファイルのみである。詳細は下記の「ロードマップと既知の制限」に既に明記されており、これまでに実際に出荷された内容は `CHANGELOG.md` を参照。
 
-> **安全性とセキュリティの現状:** このエコシステムは認証された安全システムではありません。ハードウェアの E-STOP 経路、ファームウェアが強制する制限やインターロック、検証済みの動作コマンドはまだありません。ファームウェアイメージは CRC32 と共有鍵の HMAC-SHA256 で検査しており、非対称署名ではありません。TLS と相互 TLS は任意で、既定では無効です。独自基板はまだ実装も試験もされていません。ここに書かれた内容を人の安全のために頼る前に、[セキュリティベースライン](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/SECURITY_BASELINE.md)と[脅威モデル](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/THREAT_MODEL.md)をお読みください。
+> **安全性とセキュリティの現状:** このエコシステムは認証された安全システムではありません。ハードウェアの E-STOP 経路、ファームウェアが強制する制限やインターロック、検証済みの動作コマンドはまだありません。ファームウェアイメージは CRC-32 と Ed25519 署名で検査し、リリースビルドは公開済みの開発用鍵を拒否します(リレーの先のツールヘッドと拡張ボードは引き続き URTC のブートローダーを使い、署名ではなく共有鍵の HMAC-SHA256 を使います)。TLS と相互 TLS は任意で、既定では無効です。独自基板はまだ実装も試験もされていません。ここに書かれた内容を人の安全のために頼る前に、[セキュリティベースライン](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/SECURITY_BASELINE.md)と[脅威モデル](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/THREAT_MODEL.md)をお読みください。
 
 ---
 
