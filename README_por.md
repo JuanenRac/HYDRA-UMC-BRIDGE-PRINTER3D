@@ -19,7 +19,7 @@ GPL-3.0-or-later - see LICENSE
   <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB.svg" alt="Python">
   <img src="https://img.shields.io/badge/Safety-Fails%20Closed-red.svg" alt="Safety">
   <img src="https://img.shields.io/badge/Tests-125%20passing-2ea44f.svg" alt="Tests">
-  <img src="https://img.shields.io/badge/Version-0.1.9-0f6cbd.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Version-0.2.0-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
 
@@ -35,7 +35,7 @@ GPL-3.0-or-later - see LICENSE
 
 | | |
 |---|---|
-| Versão | `0.1.9` |
+| Versão | `0.2.0` |
 | Maturidade | Funcional |
 | Testes | 125 (`python tools/build_test.py`) |
 | Tecnologia | Python / Moonraker / Klipper / G-code / 3MF |
@@ -260,7 +260,7 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 
 **Limites conhecidos hoje**
 
-**Real hoje:** versão `0.1.9`, um adaptador de prontidão do Moonraker testado localmente (`MoonrakerProbe` + `PrinterBridge`) apoiado pela porta de trabalhos partilhada do `HYDRA-UMC-SDK`, comandos de trabalho reais protegidos pelo SDK (`MoonrakerJobControl`: iniciar/pausar/retomar/cancelar um ficheiro já carregado pela API REST do próprio Moonraker), evidência só de leitura de G-code/3MF/fatias de resina e de compatibilidade de perfis para as principais famílias de fatiadores, uma suíte `unittest` determinista de 125 testes que inclui HTTP local `/printer/info`, o contrato real e separado `/printer/objects/query?print_stats=state` e a verificação real de comandos de trabalho por `POST`, e scripts build-test que não alteram nada ligados ao CI com um checkout do SDK.
+**Real hoje:** versão `0.2.0`, um adaptador de prontidão do Moonraker testado localmente (`MoonrakerProbe` + `PrinterBridge`) apoiado pela porta de trabalhos partilhada do `HYDRA-UMC-SDK`, comandos de trabalho reais protegidos pelo SDK (`MoonrakerJobControl`: iniciar/pausar/retomar/cancelar um ficheiro já carregado pela API REST do próprio Moonraker), evidência só de leitura de G-code/3MF/fatias de resina e de compatibilidade de perfis para as principais famílias de fatiadores, uma suíte `unittest` determinista de 125 testes que inclui HTTP local `/printer/info`, o contrato real e separado `/printer/objects/query?print_stats=state` e a verificação real de comandos de trabalho por `POST`, e scripts build-test que não alteram nada ligados ao CI com um checkout do SDK.
 
 **Fronteira de integração:** o firmware nativo da impressora (Klipper através do Moonraker) mantém em todo o momento o movimento, os aquecedores, a proteção térmica e os interlocks da máquina; este bridge lê a prontidão, envia apenas comandos de nível de trabalho já seguros (nunca G-code em bruto) e regula o trabalho robótico *auxiliar* à sua volta.
 

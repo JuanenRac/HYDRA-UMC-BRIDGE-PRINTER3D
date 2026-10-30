@@ -19,7 +19,7 @@ GPL-3.0-or-later - see LICENSE
   <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB.svg" alt="Python">
   <img src="https://img.shields.io/badge/Safety-Fails%20Closed-red.svg" alt="Safety">
   <img src="https://img.shields.io/badge/Tests-125%20passing-2ea44f.svg" alt="Tests">
-  <img src="https://img.shields.io/badge/Version-0.1.9-0f6cbd.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Version-0.2.0-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
 
@@ -35,7 +35,7 @@ GPL-3.0-or-later - see LICENSE
 
 | | |
 |---|---|
-| 版本 | `0.1.9` |
+| 版本 | `0.2.0` |
 | 成熟度 | 可用 |
 | 测试 | 125 (`python tools/build_test.py`) |
 | 技术栈 | Python / Moonraker / Klipper / G-code / 3MF |
@@ -258,7 +258,7 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 
 **当前已知限制**
 
-**目前真实的部分:** 版本 `0.1.9`,一个已在本地测试过的 Moonraker 就绪适配器(`MoonrakerProbe` + `PrinterBridge`),依托 `HYDRA-UMC-SDK` 的共享任务门控,真实的、由 SDK 门控的作业命令(`MoonrakerJobControl`:通过 Moonraker 自身的 REST API 启动/暂停/恢复/取消一个已上传的文件),包含主要切片软件系列的只读 G-code/3MF/树脂切片产物与配置文件兼容性证据,配有确定性的125项 `unittest` 测试套件(包括本地 HTTP `/printer/info` 合同验证、真实的、独立的 `/printer/objects/query?print_stats=state` 合同,以及真实的 `POST` 作业命令验证),以及已接入 CI 并带 SDK 检出的非变更式 build-test 脚本。
+**目前真实的部分:** 版本 `0.2.0`,一个已在本地测试过的 Moonraker 就绪适配器(`MoonrakerProbe` + `PrinterBridge`),依托 `HYDRA-UMC-SDK` 的共享任务门控,真实的、由 SDK 门控的作业命令(`MoonrakerJobControl`:通过 Moonraker 自身的 REST API 启动/暂停/恢复/取消一个已上传的文件),包含主要切片软件系列的只读 G-code/3MF/树脂切片产物与配置文件兼容性证据,配有确定性的125项 `unittest` 测试套件(包括本地 HTTP `/printer/info` 合同验证、真实的、独立的 `/printer/objects/query?print_stats=state` 合同,以及真实的 `POST` 作业命令验证),以及已接入 CI 并带 SDK 检出的非变更式 build-test 脚本。
 
 **集成边界:** 打印机的原生固件(通过 Moonraker 的 Klipper)始终保留运动、加热器、热保护和机器联锁;本桥接读取就绪状态,只发送本身已安全的作业级命令(绝不发送原始 G-code),并门控围绕它的*辅助*机器人工作。
 

@@ -19,7 +19,7 @@ GPL-3.0-or-later - see LICENSE
   <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB.svg" alt="Python">
   <img src="https://img.shields.io/badge/Safety-Fails%20Closed-red.svg" alt="Safety">
   <img src="https://img.shields.io/badge/Tests-125%20passing-2ea44f.svg" alt="Tests">
-  <img src="https://img.shields.io/badge/Version-0.1.9-0f6cbd.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Version-0.2.0-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
 
@@ -35,7 +35,7 @@ GPL-3.0-or-later - see LICENSE
 
 | | |
 |---|---|
-| Versione | `0.1.9` |
+| Versione | `0.2.0` |
 | Maturità | Funzionale |
 | Test | 125 (`python tools/build_test.py`) |
 | Tecnologia | Python / Moonraker / Klipper / G-code / 3MF |
@@ -258,7 +258,7 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 
 **Limiti noti oggi**
 
-**Reale oggi:** versione `0.1.9`, un adattatore di prontezza Moonraker testato in locale (`MoonrakerProbe` + `PrinterBridge`) appoggiato sulla porta di lavoro condivisa di `HYDRA-UMC-SDK`, veri comandi di lavoro controllati dall'SDK (`MoonrakerJobControl`: avviare/mettere in pausa/riprendere/annullare un file già caricato tramite la vera API REST di Moonraker), evidenza in sola lettura di artefatti G-code/3MF/slice di resina e compatibilità del profilo per le principali famiglie di slicer, una suite `unittest` deterministica di 125 test che include la verifica del contratto HTTP locale `/printer/info`, il vero e separato contratto `/printer/objects/query?print_stats=state`, e la vera verifica dei comandi di lavoro `POST`, e script build-test non mutanti collegati alla CI con checkout dell'SDK.
+**Reale oggi:** versione `0.2.0`, un adattatore di prontezza Moonraker testato in locale (`MoonrakerProbe` + `PrinterBridge`) appoggiato sulla porta di lavoro condivisa di `HYDRA-UMC-SDK`, veri comandi di lavoro controllati dall'SDK (`MoonrakerJobControl`: avviare/mettere in pausa/riprendere/annullare un file già caricato tramite la vera API REST di Moonraker), evidenza in sola lettura di artefatti G-code/3MF/slice di resina e compatibilità del profilo per le principali famiglie di slicer, una suite `unittest` deterministica di 125 test che include la verifica del contratto HTTP locale `/printer/info`, il vero e separato contratto `/printer/objects/query?print_stats=state`, e la vera verifica dei comandi di lavoro `POST`, e script build-test non mutanti collegati alla CI con checkout dell'SDK.
 
 **Confine di integrazione:** il firmware nativo della stampante (Klipper via Moonraker) mantiene sempre il movimento, i riscaldatori, la protezione termica e gli interblocchi macchina; questo ponte legge la prontezza, invia solo comandi di livello lavoro già sicuri (mai G-code grezzo) e regola il lavoro robotico *ausiliario* attorno ad essa.
 

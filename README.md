@@ -19,7 +19,7 @@ GPL-3.0-or-later - see LICENSE
   <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB.svg" alt="Python">
   <img src="https://img.shields.io/badge/Safety-Fails%20Closed-red.svg" alt="Safety">
   <img src="https://img.shields.io/badge/Tests-125%20passing-2ea44f.svg" alt="Tests">
-  <img src="https://img.shields.io/badge/Version-0.1.9-0f6cbd.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Version-0.2.0-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
 
@@ -35,7 +35,7 @@ GPL-3.0-or-later - see LICENSE
 
 | | |
 |---|---|
-| Version | `0.1.9` |
+| Version | `0.2.0` |
 | Maturity | Functional |
 | Tests | 125 (`python tools/build_test.py`) |
 | Stack | Python / Moonraker / Klipper / G-code / 3MF |
@@ -260,7 +260,7 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 
 **Known limits today**
 
-**Real today:** version `0.1.9`, a locally tested Moonraker readiness adapter (`MoonrakerProbe` + `PrinterBridge`) backed by `HYDRA-UMC-SDK`'s shared job gate, real SDK-gated job commands (`MoonrakerJobControl`: start/pause/resume/cancel an already-uploaded file through Moonraker's own REST API), read-only G-code/3MF/resin-slice and profile-compatibility evidence for the major slicer families, a deterministic 125-test `unittest` suite including local HTTP `/printer/info`, the real, separate `/printer/objects/query?print_stats=state` contract, and real `POST` job-command verification, and non-mutating build-test scripts wired into CI with an SDK checkout.
+**Real today:** version `0.2.0`, a locally tested Moonraker readiness adapter (`MoonrakerProbe` + `PrinterBridge`) backed by `HYDRA-UMC-SDK`'s shared job gate, real SDK-gated job commands (`MoonrakerJobControl`: start/pause/resume/cancel an already-uploaded file through Moonraker's own REST API), read-only G-code/3MF/resin-slice and profile-compatibility evidence for the major slicer families, a deterministic 125-test `unittest` suite including local HTTP `/printer/info`, the real, separate `/printer/objects/query?print_stats=state` contract, and real `POST` job-command verification, and non-mutating build-test scripts wired into CI with an SDK checkout.
 
 **Integration boundary:** native printer firmware (Klipper via Moonraker) retains motion, heaters, thermal protection and machine interlocks at all times; this bridge reads readiness, sends only already-safe job-level commands (never raw G-code) and gates *auxiliary* robot work around it.
 

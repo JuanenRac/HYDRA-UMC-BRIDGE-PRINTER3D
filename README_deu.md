@@ -19,7 +19,7 @@ GPL-3.0-or-later - see LICENSE
   <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB.svg" alt="Python">
   <img src="https://img.shields.io/badge/Safety-Fails%20Closed-red.svg" alt="Safety">
   <img src="https://img.shields.io/badge/Tests-125%20passing-2ea44f.svg" alt="Tests">
-  <img src="https://img.shields.io/badge/Version-0.1.9-0f6cbd.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Version-0.2.0-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
 
@@ -35,7 +35,7 @@ GPL-3.0-or-later - see LICENSE
 
 | | |
 |---|---|
-| Version | `0.1.9` |
+| Version | `0.2.0` |
 | Reifegrad | Funktionsfähig |
 | Tests | 125 (`python tools/build_test.py`) |
 | Technik | Python / Moonraker / Klipper / G-code / 3MF |
@@ -258,7 +258,7 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 
 **Bekannte Grenzen heute**
 
-**Heute real:** Version `0.1.9`, ein lokal getesteter Moonraker-Bereitschaftsadapter (`MoonrakerProbe` + `PrinterBridge`), gestützt auf das gemeinsame Auftragsgatter von `HYDRA-UMC-SDK`, echte, SDK-gegatterte Auftragsbefehle (`MoonrakerJobControl`: eine bereits hochgeladene Datei über Moonrakers eigene REST-API starten/pausieren/fortsetzen/abbrechen), schreibgeschützte Evidenz für G-Code/3MF/Resin-Slice-Artefakte und Profilkompatibilität für die wichtigsten Slicer-Familien, eine deterministische `unittest`-Suite mit 125 Tests einschließlich der lokalen HTTP-Vertragsprüfung `/printer/info`, dem echten, separaten Vertrag `/printer/objects/query?print_stats=state` und echter `POST`-Auftragsbefehl-Verifikation, sowie nicht-mutierende Build-Test-Skripte, die in CI mit SDK-Checkout eingebunden sind.
+**Heute real:** Version `0.2.0`, ein lokal getesteter Moonraker-Bereitschaftsadapter (`MoonrakerProbe` + `PrinterBridge`), gestützt auf das gemeinsame Auftragsgatter von `HYDRA-UMC-SDK`, echte, SDK-gegatterte Auftragsbefehle (`MoonrakerJobControl`: eine bereits hochgeladene Datei über Moonrakers eigene REST-API starten/pausieren/fortsetzen/abbrechen), schreibgeschützte Evidenz für G-Code/3MF/Resin-Slice-Artefakte und Profilkompatibilität für die wichtigsten Slicer-Familien, eine deterministische `unittest`-Suite mit 125 Tests einschließlich der lokalen HTTP-Vertragsprüfung `/printer/info`, dem echten, separaten Vertrag `/printer/objects/query?print_stats=state` und echter `POST`-Auftragsbefehl-Verifikation, sowie nicht-mutierende Build-Test-Skripte, die in CI mit SDK-Checkout eingebunden sind.
 
 **Integrationsgrenze:** die native Drucker-Firmware (Klipper über Moonraker) behält jederzeit Bewegung, Heizelemente, thermischen Schutz und Maschinenverriegelungen; diese Brücke liest die Bereitschaft, sendet nur bereits sichere Befehle auf Auftragsebene (nie rohen G-Code) und steuert *Hilfs*-Roboterarbeit rund darum.
 
