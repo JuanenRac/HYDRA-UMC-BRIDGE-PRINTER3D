@@ -177,11 +177,11 @@ class MoonrakerProbe:
             return PrinterStatus(MachineState.OFFLINE, problem)
 
         info_status = self._get(f"{normalized_base_url}/printer/info", timeout_seconds, self.parse_info, self._api_key)
-        if info_status.state != MachineState.IDLE:
+        if info_status.state != MachineState.IDLE:  # type: ignore[union-attr]
             # klippy is not ready (startup/shutdown/error) or unreachable -
             # that already fails closed, so there is no point asking a
             # printer that is not even connected about its print_stats.
-            return info_status
+            return info_status  # type: ignore[return-value]
 
         # klippy_state=ready alone does not mean the print head is free -
         # see parse_print_stats()'s own comment. Query the real, separate
@@ -195,7 +195,7 @@ class MoonrakerProbe:
         if print_status is None:
             # standby/complete/cancelled - the print head is genuinely
             # free, so the original klippy_state=ready reading stands.
-            return info_status
+            return info_status  # type: ignore[return-value]
         # printing/paused/error is a real override that must win over a
         # bare klippy_state=ready reading; a transport/parse failure here
         # also comes back as a PrinterStatus(OFFLINE, ...) from _get()'s

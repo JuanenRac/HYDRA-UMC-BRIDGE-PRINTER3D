@@ -48,12 +48,12 @@ import json
 import logging
 import time
 from dataclasses import asdict
-from typing import Callable
+from typing import Any, Callable
 
 from hydra_umc_sdk.bridge_contract import BridgeError, CellState, JobPhase, decision_to_dict, job_from_dict
 from hydra_umc_sdk.job_intake import IdempotencyStore
 from hydra_umc_sdk.bridge_transport import MessageDispatcher as SharedMessageDispatcher
-from hydra_umc_sdk.bridge_transport import MqttPublish, connect_with_retry, open_bridge_client
+from hydra_umc_sdk.bridge_transport import MqttPublish, connect_with_retry, open_bridge_client  # noqa: F401
 
 from .moonraker import MoonrakerJobControl, MoonrakerProbe, PrinterBridge, PrinterStatus, api_key_from_env
 
@@ -78,7 +78,7 @@ def _status_payload(status: PrinterStatus, observed_at_ms: int) -> str:
 
 
 def _result_payload(topic: str, result: object) -> MqttPublish:
-    payload = asdict(result)
+    payload = asdict(result)  # type: ignore[call-overload]
     return MqttPublish(topic, json.dumps(payload))
 
 
@@ -197,7 +197,7 @@ class PrinterMqttBridge:
             job = job_from_dict(request["job"])
             filename = request["filename"]
         except (json.JSONDecodeError, BridgeError, KeyError, ValueError, UnicodeDecodeError) as error:
-            result = {"allowed": False, "executed": False, "reason": f"malformed start payload: {error}", "http_status": None}
+            result: Any = {"allowed": False, "executed": False, "reason": f"malformed start payload: {error}", "http_status": None}
             return MqttPublish(result_topic, json.dumps(result))
         # one key space per verb: asking the gate with `cmd/job` and then starting with the same job must start it
         key = f"start:{job.idempotency_key}"
@@ -218,7 +218,7 @@ class PrinterMqttBridge:
         try:
             job = job_from_dict(json.loads(payload))
         except (json.JSONDecodeError, BridgeError, UnicodeDecodeError) as error:
-            decision = {"allowed": False, "reason": f"malformed job payload: {error}"}
+            decision: Any = {"allowed": False, "reason": f"malformed job payload: {error}"}
             return MqttPublish(result_topic, json.dumps(decision))
         key = f"job:{job.idempotency_key}"
         repeat = self._repeat(key, result_topic, {"allowed": False, "reason": "this idempotency_key was already handled"})
@@ -306,6 +306,6 @@ def run_forever(
             max_connect_attempts=max_connect_attempts,
             connect_retry_delay_seconds=connect_retry_delay_seconds,
         )
-        client.loop_forever()
+        client.loop_forever()  # type: ignore[attr-defined]
     finally:
         dispatcher.close(wait=False)
