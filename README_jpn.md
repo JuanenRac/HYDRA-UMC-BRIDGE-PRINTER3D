@@ -83,6 +83,8 @@ flowchart LR
     PRINTER["Moonraker / Klipper<br/>(/printer/info)"] --> BRIDGE["BRIDGE-PRINTER3D<br/>MoonrakerProbe.parse_info()"]
     BRIDGE -- "BridgeJob + 観測された MachineState" --> SDK["HYDRA-UMC-SDK<br/>evaluate_job()"]
     SDK -- GateDecision --> RESULT["MQTT: cmd/job/result"]
+    SDK -- "許可" --> JOBCTRL["MoonrakerJobControl<br/>開始/一時停止/再開/キャンセル"]
+    JOBCTRL -- "POST /printer/print/*" --> PRINTER
 ```
 
 </details>
@@ -184,6 +186,8 @@ run_forever(bridge, host="192.168.0.180")                                       
 
 | テストファイル | テスト数 | 対象 |
 |---|---|---|
+| `test_global_stop.py`, `test_global_stop_broker.py` | - | グローバル停止のガードと理由付きの拒否、および空いているローカルポートの実際のブローカーに対する同じ試験（QoS 0・1・2 での通知、接続時に保持された停止に従うこと、読めない通知は安全側に倒れること） |
+| `test_broker_integration.py`, `broker_harness.py` | - | 空いているローカルポート上の実際の HYDRA-UMC-MQTT-BROKER に対する MQTT クライアントの試験：クライアント経由の指示、保持された状態と遺言、ブローカーが落ちて戻った後の復帰。Node.js、`paho-mqtt`、またはインストール済みのブローカー（`HYDRA_UMC_TEST_BROKER_DIR`、既定は隣のフォルダー）がなければ自動的にスキップされます |
 | `test_moonraker.py` | - | 準備状態の解析と、ローカルの代替相手に対するゲート付きジョブコマンド |
 | `test_artifacts.py`, `test_profiles.py` | - | ファイルの識別とプロファイルの照合 |
 | `test_mqtt_transport.py`, `test_mqtt_environment.py`, `test_hardening.py`, `test_edge_cases.py`, `test_idempotency.py` | - | トピックの振り分け、環境の認証情報、悪意あるクライアント、境界ケース、繰り返しキー |

@@ -83,6 +83,8 @@ flowchart LR
     PRINTER["Moonraker / Klipper<br/>(/printer/info)"] --> BRIDGE["BRIDGE-PRINTER3D<br/>MoonrakerProbe.parse_info()"]
     BRIDGE -- "BridgeJob + MachineState osservato" --> SDK["HYDRA-UMC-SDK<br/>evaluate_job()"]
     SDK -- GateDecision --> RESULT["MQTT: cmd/job/result"]
+    SDK -- "consentito" --> JOBCTRL["MoonrakerJobControl<br/>avviare/sospendere/riprendere/annullare"]
+    JOBCTRL -- "POST /printer/print/*" --> PRINTER
 ```
 
 </details>
@@ -184,6 +186,8 @@ Nome utente, password e file TLS vengono dalle variabili `HYDRA_MQTT_*` (vedi Co
 
 | File di test | Test | Cosa copre |
 |---|---|---|
+| `test_global_stop.py`, `test_global_stop_broker.py` | - | la guardia dell'arresto globale e i suoi rifiuti con il motivo, e lo stesso contro un broker reale su una porta locale libera (l'annuncio in QoS 0, 1 e 2, un arresto trattenuto obbedito alla connessione, uno illeggibile che fallisce chiuso) |
+| `test_broker_integration.py`, `broker_harness.py` | - | il client MQTT contro un vero HYDRA-UMC-MQTT-BROKER su una porta locale libera: un ordine tramite il client, lo stato trattenuto e l'ultimo testamento, e il ritorno dopo che il broker è caduto e tornato; si salta se mancano Node.js, `paho-mqtt` o il broker installato (`HYDRA_UMC_TEST_BROKER_DIR`, per impostazione predefinita la cartella accanto) |
 | `test_moonraker.py` | - | lettura dello stato e comandi lavoro con porta contro un sostituto locale |
 | `test_artifacts.py`, `test_profiles.py` | - | identificazione dei file e associazione ai profili |
 | `test_mqtt_transport.py`, `test_mqtt_environment.py`, `test_hardening.py`, `test_edge_cases.py`, `test_idempotency.py` | - | smistamento dei topic, credenziali dell'ambiente, client ostili, casi limite, chiavi ripetute |
