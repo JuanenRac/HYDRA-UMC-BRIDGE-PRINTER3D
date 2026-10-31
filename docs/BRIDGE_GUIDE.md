@@ -31,6 +31,18 @@ FDM artifact evidence supports ordinary G-code from OrcaSlicer, Ultimaker Cura, 
 
 Use the standard header, declared mutation behavior, numbered console steps and `pause` in `.bat`. Keep reusable code in `src/` or `tools/`, compile it in `tools/build_test.py`, add a deterministic test and document it. A new script must not make artifact detection become a print command.
 
+## Following the global stop
+
+The server can announce a global stop on `<mqtt prefix>/safety/estop` (a retained `SafetyState` message: `SAFE_STOP`, later `READY`; the contract is `docs/GLOBAL_STOP.md` of HYDRA-UMC-SERVER). This bridge can follow it. It is off by default and then behaves exactly as before: it does not even subscribe to the topic.
+
+| Switch | Default | Meaning |
+|---|---|---|
+| `HYDRA_UMC_PRINTER3D_GLOBAL_STOP` | off | `1` makes the bridge subscribe to the announcement (QoS 1, again after every reconnect) |
+| `HYDRA_UMC_PRINTER3D_GLOBAL_STOP_TOPIC` | `hydra/swarm/safety/estop` | the topic, when the MQTT prefix of the server is not the default one |
+| `HYDRA_UMC_PRINTER3D_GLOBAL_STOP_STRICT` | off | `1` also refuses before the first announcement has been heard |
+
+While the last announcement says `SAFE_STOP`, says anything but `READY`, or cannot be read, the command handler of the bridge refuses `cmd/resume`, `cmd/start` and `cmd/job` (an abort job passes) with an answer that gives the reason (`global stop active (SAFE_STOP) - nothing moves until the server announces READY`); `cmd/pause`, `cmd/cancel`, `cmd/emergency_stop` and `cmd/status` keep working. Only a `READY` message ends it. The announcement is read although it is retained: it is the state, not a replayed command. When the broker is lost the bridge keeps the last state it heard; a bridge that has not heard the topic yet is left as it was, unless `HYDRA_UMC_PRINTER3D_GLOBAL_STOP_STRICT` is on. This is a refusal in software: the controller and the machine keep the last word, and the contract adds a stop, it never removes one. Tested against a real broker (`tests/test_global_stop_broker.py`); never run with the real server.
+
 ## Hardware acceptance gate
 
 Use real exported jobs, identify a concrete printer/controller/profile, validate material/nozzle/volume constraints, read authenticated Moonraker state (the API key goes in `MOONRAKER_API_KEY` and is sent as `X-Api-Key`; a 401 or 403 is reported as refused credentials; this has only been tried against a local fixture), verify independent thermal/machine safety, then run a supervised HIL plan. Native firmware retains all print authority.

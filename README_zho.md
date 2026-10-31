@@ -18,14 +18,14 @@ GPL-3.0-or-later - see LICENSE
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB.svg" alt="Python">
   <img src="https://img.shields.io/badge/Safety-Fails%20Closed-red.svg" alt="Safety">
-  <img src="https://img.shields.io/badge/Tests-132%20passing-2ea44f.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-157%20passing-2ea44f.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.2.0-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
 
 ---
 
-> **诚实检查——今天真正可运行的部分：** Moonraker 就绪探测与安全门控（`moonraker.py` 中的 `MoonrakerProbe`/`PrinterBridge`，每个任务都会经过 `HYDRA-UMC-SDK` 自身真正的 `evaluate_job()`）、真正的由 SDK 门控的任务命令（`MoonrakerJobControl` 的启动/暂停/恢复/取消）、只读的产物/配置文件证据（`artifacts.py`、`profiles.py`），以及 MQTT 命令/状态桥接（`mqtt_transport.py`）都是真实的，并由 132 个通过的 `unittest` 用例覆盖（`python tools/build_test.py`）。面向 Moonraker 的测试是针对一个真实的本地 `ThreadingHTTPServer` 运行的，用来替代真正的 Moonraker REST API——而不是真实的打印机——而 MQTT 层自身的 `connect_with_retry()`/消息路由逻辑在测试中从未真正打开过 `paho-mqtt` 连接或 broker。正如下文 README 已经说明的那样，该桥接尚未针对真实的打印机、热端或机器人进行过验证。原始 G-code 流式传输被有意地没有实现——只能按名称启动/暂停/恢复/取消一个已上传、已切片好的文件。详见下文的"当前状态与后续步骤"（已经如实说明了这一点），以及 `CHANGELOG.md` 中目前具体已交付的内容。
+> **诚实检查——今天真正可运行的部分：** Moonraker 就绪探测与安全门控（`moonraker.py` 中的 `MoonrakerProbe`/`PrinterBridge`，每个任务都会经过 `HYDRA-UMC-SDK` 自身真正的 `evaluate_job()`）、真正的由 SDK 门控的任务命令（`MoonrakerJobControl` 的启动/暂停/恢复/取消）、只读的产物/配置文件证据（`artifacts.py`、`profiles.py`），以及 MQTT 命令/状态桥接（`mqtt_transport.py`）都是真实的，并由 157 个通过的 `unittest` 用例覆盖（`python tools/build_test.py`）。面向 Moonraker 的测试是针对一个真实的本地 `ThreadingHTTPServer` 运行的，用来替代真正的 Moonraker REST API——而不是真实的打印机——而 MQTT 层自身的 `connect_with_retry()`/消息路由逻辑在测试中从未真正打开过 `paho-mqtt` 连接或 broker。正如下文 README 已经说明的那样，该桥接尚未针对真实的打印机、热端或机器人进行过验证。原始 G-code 流式传输被有意地没有实现——只能按名称启动/暂停/恢复/取消一个已上传、已切片好的文件。详见下文的"当前状态与后续步骤"（已经如实说明了这一点），以及 `CHANGELOG.md` 中目前具体已交付的内容。
 
 > **安全与安防现状:**本生态系统不是经认证的安全系统。目前尚无硬件 E-STOP 通路,没有由固件强制执行的限位或联锁,也没有经过验证的运动指令;固件映像使用 CRC-32 和 Ed25519 签名校验,发布构建会拒绝已公开的开发密钥(中继之后的工具头和扩展板仍运行 URTC 的引导程序,它们使用共享密钥的 HMAC-SHA256 而不是签名);TLS 与双向 TLS 均为可选项,默认关闭;自制电路板尚未组装或测试。在依赖此处任何说法来保障人身安全之前,请先阅读[安全基线](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/SECURITY_BASELINE.md)和[威胁模型](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/THREAT_MODEL.md)。
 
@@ -37,7 +37,7 @@ GPL-3.0-or-later - see LICENSE
 |---|---|
 | 版本 | `0.2.0` |
 | 成熟度 | 可用 |
-| 测试 | 132 (`python tools/build_test.py`) |
+| 测试 | 157 (`python tools/build_test.py`) |
 | 技术栈 | Python / Moonraker / Klipper / G-code / 3MF |
 | 目标 | HYDRA-UMC 工作单元的 Raspberry Pi CM5 |
 | 真实硬件 | 仅模拟：使用模拟器、替身或仿真测试；此版本没有在真实硬件上运行的记录 |
@@ -53,7 +53,7 @@ GPL-3.0-or-later - see LICENSE
 | 领域 | 状态 | 在这里的含义 |
 |---|---|---|
 | 软件 | 🟡 | 主要用途可用；上面的诚实性检查列出了仍然缺少的内容 |
-| 测试 | 🟢 | 132 项自动测试，每次变更都会运行 |
+| 测试 | 🟢 | 157 项自动测试，每次变更都会运行 |
 | 真实硬件 | 🟠 | 仅模拟：使用模拟器、替身或仿真测试；此版本没有在真实硬件上运行的记录 |
 | 文档 | 🟢 | 八种语言的 README，每次变更都会与清单核对 |
 
@@ -109,6 +109,7 @@ flowchart LR
 * 🔜 **原始 G-code 流式传输:** 刻意仍然推迟——发送任意底层命令(而非一个已命名、已切片的作业)需要经过测试的配置文件、身份验证以及本桥目前还不具备的物理安全评审。*(计划中)*
 * ✅ **重复的幂等键：** `PrinterMqttBridge` 接受 `IdempotencyStore`：重复的作业键会得到第一次给出的答复，而不是被重新评估，因此重复的 `cmd/start` 绝不会启动第二次打印。*（已实现，已在 `tests/test_idempotency.py` 中测试）*
 * ✅ **加固的 MQTT 循环:** 过大(超过 16 KiB)或无法读取的负载、深度嵌套的 JSON 以及任何意外故障,都会在结果主题上得到拒绝回复,绝不会终止循环;暂停、取消和新增的 `cmd/emergency_stop`(Klipper 的 M112)在独立通道上处理,因此缓慢的 Moonraker 绝不会拖延停止;幂等键按动词区分(`job:`/`start:`);`cmd/job` 的回复带有 `"mode": "gate-only"`,通过它发出的 ABORT 会说明没有停止任何东西;状态带有 `observed_at`,桥接在带遗嘱(Last Will)的 `availability` 主题上宣告自己;支持 Moonraker API 密钥(`MOONRAKER_API_KEY`,以 `X-Api-Key` 发送),并且仅对 Moonraker 认识的文件才发送启动。*(已实现,在 `tests/test_hardening.py` 中测试)*
+* ✅ **跟随全局停止（默认关闭）:** 设置 `HYDRA_UMC_PRINTER3D_GLOBAL_STOP=1` 后，桥接读取服务器在 `hydra/swarm/safety/estop` 上的保留通知；通知为 `SAFE_STOP` 或无法读取时，它会带原因拒绝：恢复、启动和任务（中止放行）。停止命令和只读请求照常工作，只有 `READY` 才能解除拒绝。*（已实现，已对真实代理测试；从未与真实服务器一起运行）*
 
 ### 切片软件产物兼容性
 
@@ -148,6 +149,7 @@ flowchart LR
 | 变量 | 默认值 | 设置内容 |
 |---|---|---|
 | `MOONRAKER_API_KEY` | 未设置（无密钥） | Moonraker API 密钥，以 `X-Api-Key` 发送 |
+| `HYDRA_UMC_PRINTER3D_GLOBAL_STOP` | 关闭 | `1` 跟随服务器的全局停止：只要保留主题 `hydra/swarm/safety/estop` 上最新的通知是 `SAFE_STOP`（或无法读取），桥接就会带原因拒绝：恢复、启动和任务（中止放行）；只有 `READY` 才能解除。`HYDRA_UMC_PRINTER3D_GLOBAL_STOP_TOPIC` 可更改主题，`HYDRA_UMC_PRINTER3D_GLOBAL_STOP_STRICT=1` 会在收到第一条通知之前也拒绝 |
 | `HYDRA_MQTT_USERNAME` | 无 | MQTT 用户名；代理将其绑定到客户端 ID 前缀 |
 | `HYDRA_MQTT_PASSWORD` | 无 | 密码；只能与用户名一起使用 |
 | `HYDRA_MQTT_PASSWORD_FILE` | 无 | 从文件读取的密码（Docker 或 systemd 机密）；设置了 `HYDRA_MQTT_PASSWORD` 时忽略 |
@@ -178,7 +180,7 @@ run_forever(bridge, host="192.168.0.180")                                       
 
 ## 🧪 测试
 
-运行 `python tools/build_test.py` 会执行 132 个自动 `unittest` 用例（同时编译每个模块）。测试不需要硬件、网络或可选软件包：需要 `paho-mqtt`、`pyserial` 或厂商库的用例使用替身，缺少软件包时则跳过。
+运行 `python tools/build_test.py` 会执行 157 个自动 `unittest` 用例（同时编译每个模块）。测试不需要硬件、网络或可选软件包：需要 `paho-mqtt`、`pyserial` 或厂商库的用例使用替身，缺少软件包时则跳过。
 
 | 测试文件 | 测试数 | 覆盖内容 |
 |---|---|---|
@@ -202,7 +204,7 @@ bash build-test.sh
 bash build.sh
 ```
 
-`build-test` 使用 `py_compile` 编译 `src/` 和 `tools/` 下的每个模块,并运行在 `tests/` 下发现的完整 `unittest` 套件(`test_moonraker.py`、`test_artifacts.py`、`test_profiles.py`、`test_mqtt_transport.py`、`test_hardening.py`、`test_idempotency.py`、`test_mqtt_environment.py`——共 132 个测试),证明就绪响应解析、产物检查和故障安全门控等均按预期工作 —— 它不发送任何 G-code、不触碰打印机,也绝不会修改仓库。`build` 会先运行同样的验证,只有成功后才调用 `tools/bump_version.py`,在 `pyproject.toml`、`hydra-umc.project.json` 和 `CHANGELOG.md` 之间同步版本号。目前尚无真正的打印机 `run` 命令 —— 这需要先有经过测试的配置文件、身份验证和物理安全评审。
+`build-test` 使用 `py_compile` 编译 `src/` 和 `tools/` 下的每个模块,并运行在 `tests/` 下发现的完整 `unittest` 套件(`test_moonraker.py`、`test_artifacts.py`、`test_profiles.py`、`test_mqtt_transport.py`、`test_hardening.py`、`test_idempotency.py`、`test_mqtt_environment.py`——共 157 个测试),证明就绪响应解析、产物检查和故障安全门控等均按预期工作 —— 它不发送任何 G-code、不触碰打印机,也绝不会修改仓库。`build` 会先运行同样的验证,只有成功后才调用 `tools/bump_version.py`,在 `pyproject.toml`、`hydra-umc.project.json` 和 `CHANGELOG.md` 之间同步版本号。目前尚无真正的打印机 `run` 命令 —— 这需要先有经过测试的配置文件、身份验证和物理安全评审。
 
 要在不连接打印机的情况下检查本地切片软件输出:
 
@@ -258,7 +260,7 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 
 **当前已知限制**
 
-**目前真实的部分:** 版本 `0.2.0`,一个已在本地测试过的 Moonraker 就绪适配器(`MoonrakerProbe` + `PrinterBridge`),依托 `HYDRA-UMC-SDK` 的共享任务门控,真实的、由 SDK 门控的作业命令(`MoonrakerJobControl`:通过 Moonraker 自身的 REST API 启动/暂停/恢复/取消一个已上传的文件),包含主要切片软件系列的只读 G-code/3MF/树脂切片产物与配置文件兼容性证据,配有确定性的125项 `unittest` 测试套件(包括本地 HTTP `/printer/info` 合同验证、真实的、独立的 `/printer/objects/query?print_stats=state` 合同,以及真实的 `POST` 作业命令验证),以及已接入 CI 并带 SDK 检出的非变更式 build-test 脚本。
+**目前真实的部分:** 版本 `0.2.0`,一个已在本地测试过的 Moonraker 就绪适配器(`MoonrakerProbe` + `PrinterBridge`),依托 `HYDRA-UMC-SDK` 的共享任务门控,真实的、由 SDK 门控的作业命令(`MoonrakerJobControl`:通过 Moonraker 自身的 REST API 启动/暂停/恢复/取消一个已上传的文件),包含主要切片软件系列的只读 G-code/3MF/树脂切片产物与配置文件兼容性证据,配有确定性的157项 `unittest` 测试套件(包括本地 HTTP `/printer/info` 合同验证、真实的、独立的 `/printer/objects/query?print_stats=state` 合同,以及真实的 `POST` 作业命令验证),以及已接入 CI 并带 SDK 检出的非变更式 build-test 脚本。
 
 **集成边界:** 打印机的原生固件(通过 Moonraker 的 Klipper)始终保留运动、加热器、热保护和机器联锁;本桥接读取就绪状态,只发送本身已安全的作业级命令(绝不发送原始 G-code),并门控围绕它的*辅助*机器人工作。
 
