@@ -91,14 +91,14 @@
         {
           "name": "tests/",
           "desc": {
-            "en": "125 tests, against a local Moonraker stand-in",
-            "es": "125 pruebas, contra un sustituto local de Moonraker",
-            "de": "125 Tests, gegen einen lokalen Moonraker-Ersatz",
-            "fr": "125 tests, contre un substitut local de Moonraker",
-            "it": "125 test, contro un sostituto locale di Moonraker",
-            "ja": "125 件（ローカルの Moonraker 代替相手）",
-            "zh": "125 项测试（针对本地 Moonraker 替身）",
-            "pt": "125 testes, contra um substituto local do Moonraker"
+            "en": "132 tests, against a local Moonraker stand-in",
+            "es": "132 pruebas, contra un sustituto local de Moonraker",
+            "de": "132 Tests, gegen einen lokalen Moonraker-Ersatz",
+            "fr": "132 tests, contre un substitut local de Moonraker",
+            "it": "132 test, contro un sostituto locale di Moonraker",
+            "ja": "132 件（ローカルの Moonraker 代替相手）",
+            "zh": "132 项测试（针对本地 Moonraker 替身）",
+            "pt": "132 testes, contra um substituto local do Moonraker"
           }
         },
         {

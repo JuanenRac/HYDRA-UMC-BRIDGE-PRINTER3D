@@ -18,7 +18,7 @@ GPL-3.0-or-later - see LICENSE
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB.svg" alt="Python">
   <img src="https://img.shields.io/badge/Safety-Fails%20Closed-red.svg" alt="Safety">
-  <img src="https://img.shields.io/badge/Tests-125%20passing-2ea44f.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-132%20passing-2ea44f.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.2.0-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
@@ -37,7 +37,7 @@ GPL-3.0-or-later - see LICENSE
 |---|---|
 | バージョン | `0.2.0` |
 | 成熟度 | 機能する |
-| テスト | 125 (`python tools/build_test.py`) |
+| テスト | 132 (`python tools/build_test.py`) |
 | 技術 | Python / Moonraker / Klipper / G-code / 3MF |
 | 対象 | HYDRA-UMC セルの Raspberry Pi CM5 |
 | 実機での確認 | シミュレーションのみ：エミュレーター、模擬部品、シミュレーターで試験済み。このバージョンについて実機での動作記録はありません |
@@ -53,7 +53,7 @@ GPL-3.0-or-later - see LICENSE
 | 領域 | 状態 | ここでの意味 |
 |---|---|---|
 | ソフトウェア | 🟡 | 主な目的では動作します。足りない点は上の正直さの確認に書かれています |
-| テスト | 🟢 | 自動テスト 125 件。変更のたびに実行されます |
+| テスト | 🟢 | 自動テスト 132 件。変更のたびに実行されます |
 | 実機 | 🟠 | シミュレーションのみ：エミュレーター、模擬部品、シミュレーターで試験済み。このバージョンについて実機での動作記録はありません |
 | ドキュメント | 🟢 | 8 言語の README。変更のたびにマニフェストと照合されます |
 
@@ -178,7 +178,7 @@ run_forever(bridge, host="192.168.0.180")                                       
 
 ## 🧪 テスト
 
-`python tools/build_test.py` で自動 `unittest` 125 件を実行します（各モジュールのコンパイルも行います）。テストにハードウェア、ネットワーク、オプションのパッケージは不要で、`paho-mqtt`・`pyserial`・ベンダーのライブラリが必要なものは代用品を使うか、パッケージがなければスキップされます。
+`python tools/build_test.py` で自動 `unittest` 132 件を実行します（各モジュールのコンパイルも行います）。テストにハードウェア、ネットワーク、オプションのパッケージは不要で、`paho-mqtt`・`pyserial`・ベンダーのライブラリが必要なものは代用品を使うか、パッケージがなければスキップされます。
 
 | テストファイル | テスト数 | 対象 |
 |---|---|---|
@@ -238,7 +238,7 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   ├── artifacts.py               印刷ファイルを識別（展開はしない）
 │   ├── profiles.py                証拠を宣言済みプロファイルと照合
 │   └── mqtt_transport.py          MQTT のコマンド・状態トランスポート
-├── tests/                         125 件（ローカルの Moonraker 代替相手）
+├── tests/                         132 件（ローカルの Moonraker 代替相手）
 ├── docs/                          ブリッジガイド、プロファイルの境界、スライサーのファイル
 ├── tools/                         ビルド・テスト実行、バージョン引き上げ、CI 検証、README と図の生成・検査
 ├── images/                        バナーと README の図
