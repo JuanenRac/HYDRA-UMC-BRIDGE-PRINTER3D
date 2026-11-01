@@ -52,10 +52,11 @@ from typing import Any, Callable
 
 from hydra_umc_sdk.bridge_contract import BridgeError, CellState, JobPhase, decision_to_dict, job_from_dict
 from hydra_umc_sdk.job_intake import IdempotencyStore
+from hydra_umc_sdk.bridge_transport import BridgeHardening, hardening_from_environment
 from hydra_umc_sdk.bridge_transport import MessageDispatcher as SharedMessageDispatcher
 from hydra_umc_sdk.bridge_transport import MqttPublish, connect_with_retry, open_bridge_client  # noqa: F401
 
-from .global_stop import GlobalStopGuard, GlobalStopSettings, follow_on_connect
+from hydra_umc_sdk.global_stop import GlobalStopGuard, GlobalStopSettings, follow_on_connect
 from .moonraker import MoonrakerJobControl, MoonrakerProbe, PrinterBridge, PrinterStatus, api_key_from_env
 
 TOPIC_PREFIX = "hydra/bridges/printer3d/"
@@ -274,8 +275,8 @@ class MessageDispatcher(SharedMessageDispatcher):
     Ordinary commands run one at a time, in order, on one lane; the stop commands (`STOP_VERBS`) run on a second lane.
     """
 
-    def __init__(self, bridge: object, stop_verbs: frozenset[str] = STOP_VERBS) -> None:
-        super().__init__(bridge, TOPIC_PREFIX, stop_verbs)  # type: ignore[arg-type]
+    def __init__(self, bridge: object, stop_verbs: frozenset[str] = STOP_VERBS, **limits: int) -> None:
+        super().__init__(bridge, TOPIC_PREFIX, stop_verbs, **limits)  # type: ignore[arg-type]
         guard = getattr(bridge, "global_stop", None)
         self._global_stop = guard if isinstance(guard, GlobalStopGuard) else None
 
@@ -298,6 +299,7 @@ def run_forever(
     connect_retry_delay_seconds: float = 2.0,
     username: str | None = None,
     password: str | None = None,
+    hardening: BridgeHardening | None = None,
 ) -> None:
     """Connect to a real HYDRA-UMC-MQTT-BROKER and dispatch forever.
 
@@ -319,7 +321,9 @@ def run_forever(
     if password is not None and username is None:
         raise ValueError("password was given without a username - MQTT credentials need both")
 
-    dispatcher = MessageDispatcher(bridge)
+    # the limits of the transport are off unless the settings (the file of the service, else its environment) switch them on: see hydra_umc_sdk.bridge_transport.BridgeHardening
+    hardening = hardening if hardening is not None else hardening_from_environment(GLOBAL_STOP_ENVIRONMENT_NAME)
+    dispatcher = MessageDispatcher(bridge, **hardening.dispatcher_kwargs())  # type: ignore[arg-type]  # the keywords are ints; the stop verbs stay the default
     guard = getattr(bridge, "global_stop", None)  # a bridge object that is not one of ours has none: nothing to follow
     try:
         client = open_bridge_client(
@@ -333,6 +337,7 @@ def run_forever(
             max_connect_attempts=max_connect_attempts,
             connect_retry_delay_seconds=connect_retry_delay_seconds,
             on_connected=follow_on_connect(guard) if isinstance(guard, GlobalStopGuard) else None,
+            **hardening.connect_kwargs(),
         )
         client.loop_forever()  # type: ignore[attr-defined]
     finally:
