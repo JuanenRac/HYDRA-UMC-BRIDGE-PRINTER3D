@@ -83,9 +83,12 @@ def _status_payload(status: PrinterStatus, observed_at_ms: int) -> str:
     return json.dumps(payload)
 
 
+RESULT_QOS = 1  # an answer to a command is published at least once, like the other bridges; the retained state stays at 0
+
+
 def _result_payload(topic: str, result: object) -> MqttPublish:
     payload = asdict(result)  # type: ignore[call-overload]
-    return MqttPublish(topic, json.dumps(payload))
+    return MqttPublish(topic, json.dumps(payload), qos=RESULT_QOS)
 
 
 def _refusal(suffix: str, reason: str) -> list[MqttPublish]:
@@ -94,7 +97,7 @@ def _refusal(suffix: str, reason: str) -> list[MqttPublish]:
     if len(parts) != 2 or parts[0] != "cmd":
         return []
     result = {"allowed": False, "executed": False, "reason": reason, "http_status": None}
-    return [MqttPublish(f"{TOPIC_PREFIX}{suffix}/result", json.dumps(result))]
+    return [MqttPublish(f"{TOPIC_PREFIX}{suffix}/result", json.dumps(result), qos=RESULT_QOS)]
 
 
 class PrinterMqttBridge:
@@ -215,7 +218,7 @@ class PrinterMqttBridge:
             filename = request["filename"]
         except (json.JSONDecodeError, BridgeError, KeyError, ValueError, UnicodeDecodeError) as error:
             result: Any = {"allowed": False, "executed": False, "reason": f"malformed start payload: {error}", "http_status": None}
-            return MqttPublish(result_topic, json.dumps(result))
+            return MqttPublish(result_topic, json.dumps(result), qos=RESULT_QOS)
         # one key space per verb: asking the gate with `cmd/job` and then starting with the same job must start it
         key = f"start:{job.idempotency_key}"
         repeat = self._repeat(key, result_topic, {"allowed": False, "executed": False, "reason": "this idempotency_key was already handled", "http_status": None})
@@ -228,7 +231,7 @@ class PrinterMqttBridge:
         except Exception as error:  # noqa: BLE001
             _LOG.exception("cmd/start failed")
             failure = {"allowed": False, "executed": False, "reason": f"the start could not be handled: {type(error).__name__}", "http_status": None}
-            return self._answer(key, MqttPublish(result_topic, json.dumps(failure)))
+            return self._answer(key, MqttPublish(result_topic, json.dumps(failure), qos=RESULT_QOS))
 
     def _handle_job(self, payload: bytes) -> MqttPublish:
         result_topic = f"{TOPIC_PREFIX}cmd/job/result"
@@ -236,7 +239,7 @@ class PrinterMqttBridge:
             job = job_from_dict(json.loads(payload))
         except (json.JSONDecodeError, BridgeError, UnicodeDecodeError) as error:
             decision: Any = {"allowed": False, "reason": f"malformed job payload: {error}"}
-            return MqttPublish(result_topic, json.dumps(decision))
+            return MqttPublish(result_topic, json.dumps(decision), qos=RESULT_QOS)
         key = f"job:{job.idempotency_key}"
         repeat = self._repeat(key, result_topic, {"allowed": False, "reason": "this idempotency_key was already handled"})
         if repeat is not None:
@@ -250,18 +253,18 @@ class PrinterMqttBridge:
                 # the shared gate always lets an abort through, but THIS topic only answers a question: it stops nothing
                 result["forwarded"] = False
                 result["reason"] = "abort acknowledged by the gate only - nothing was stopped; publish cmd/cancel or cmd/emergency_stop to stop the printer"
-            return self._answer(key, MqttPublish(result_topic, json.dumps(result)))
+            return self._answer(key, MqttPublish(result_topic, json.dumps(result), qos=RESULT_QOS))
         except Exception as error:  # noqa: BLE001
             _LOG.exception("cmd/job failed")
             failure = {"allowed": False, "reason": f"the job could not be handled: {type(error).__name__}"}
-            return self._answer(key, MqttPublish(result_topic, json.dumps(failure)))
+            return self._answer(key, MqttPublish(result_topic, json.dumps(failure), qos=RESULT_QOS))
 
     def _repeat(self, key: str, result_topic: str, fallback: dict) -> MqttPublish | None:
         """None when this job key is new (it is claimed now); otherwise the answer given the first time, which is sent again instead of running the job a second time."""
         if self._idempotency is None or self._idempotency.claim(key):
             return None
         stored = self._idempotency.recall(key)
-        return MqttPublish(result_topic, stored if stored is not None else json.dumps(fallback))
+        return MqttPublish(result_topic, stored if stored is not None else json.dumps(fallback), qos=RESULT_QOS)
 
     def _answer(self, key: str, publish: MqttPublish) -> MqttPublish:
         if self._idempotency is not None:
