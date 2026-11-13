@@ -1,0 +1,69 @@
+# =============================================================================
+# HYDRA-UMC-BRIDGE-PRINTER3D - Example configuration (copy to /etc/hydra-umc/bridge-printer3d.toml)
+# Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
+# GPL-3.0-or-later - see LICENSE
+# =============================================================================
+# Every value that depends on the machine lives here. The MQTT user and password (HYDRA_MQTT_*) and the Moonraker
+# API key (MOONRAKER_API_KEY) are NOT here: they go in /etc/hydra-umc/bridge-printer3d.env, readable by root only.
+
+[mqtt]
+host = "127.0.0.1"
+port = 1883
+client_id = "hydra-umc-bridge-printer3d"
+
+# Where Moonraker answers (required: the service does not start without it).
+[moonraker]
+url = "http://127.0.0.1:7125"
+
+# Where the state of the cell (READY, INHIBITED, FAULT, SAFE_STOP) comes from.
+#   fixed: always "value" (the default is INHIBITED: nothing gets work)
+#   file:  the first word of "path"; a missing, unknown or older-than-max_age_seconds file is SAFE_STOP
+[cell_state]
+source = "file"
+path = "/run/hydra-umc/cell_state"
+max_age_seconds = 30
+
+# Keep the idempotency keys in a file so that a restarted bridge refuses a job it already handled.
+[idempotency]
+path = "/var/lib/hydra-umc-bridge-printer3d/idempotency.sqlite"
+
+# Follow the global stop that the server announces. Off by default: nothing changes.
+#   enabled: while the last announcement says SAFE_STOP (or cannot be read) a resume, a start and a job are refused; READY ends it
+#   strict:  also refuse until the first announcement has been heard
+[global_stop]
+enabled = false
+topic = "hydra/swarm/safety/estop"
+strict = false
+
+# The limits of the MQTT transport. All off by default. A table that is present but wrong stops the service at start, naming the key.
+# Without this table the environment of the service can switch it on (HYDRA_UMC_PRINTER3D_HARDENED=1).
+[hardening]
+enabled = false
+max_queue = 64
+connect_backoff_factor = 2.0
+connect_max_delay_seconds = 30.0
+connect_jitter = 0.25
+
+# Follow Moonraker over its websocket instead of asking it: the state and the progress and temperatures arrive as they change, and
+# "klippy shutdown" is published at once. Read-only; needs the optional package websocket-client. Off by default. While the
+# socket is down the bridge keeps answering cmd/status and, if the heartbeat is on, polls (it falls back by itself).
+[websocket]
+enabled = false
+# url = "ws://127.0.0.1:7125/websocket"   # default: derived from [moonraker] url
+reconnect_seconds = 5.0
+telemetry_interval_seconds = 1.0
+
+# Announce that a print is finished and the bed is cold, so that whoever moves an arm can take the part away (the event
+# hydra/bridges/printer3d/event/print_complete; it only announces, the arm keeps its own gates and confirmation). Needs [websocket].
+[print_complete]
+enabled = false
+bed_cold_celsius = 40.0
+
+# After every state the bridge publishes, publish the MTConnect execution value that goes with it (READY, ACTIVE, INTERRUPTED,
+# STOPPED or UNAVAILABLE) on hydra/bridges/printer3d/execution, for the MTConnect and OPC UA adapters. Read-only. Off by default.
+[execution]
+enabled = false
+
+# Publish the state of the printer every so many seconds (0, or this table absent: off, unless HYDRA_UMC_PRINTER3D_HEARTBEAT_S is set).
+[heartbeat]
+interval_seconds = 0
