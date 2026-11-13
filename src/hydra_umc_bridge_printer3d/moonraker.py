@@ -26,6 +26,8 @@ _MAX_INFO_BYTES = 64 * 1024
 # where a service supplies it, so that it never has to sit in a command line).
 API_KEY_HEADER = "X-Api-Key"
 API_KEY_ENV = "MOONRAKER_API_KEY"
+# "1" asks Moonraker for the firmware state and the print state in ONE request (off by default: the two requests it makes today stay the behaviour)
+SINGLE_REQUEST_ENV = "HYDRA_UMC_PRINTER3D_SINGLE_REQUEST"
 
 # What Moonraker itself accepts as a printable G-code file.
 _GCODE_SUFFIXES = {".gcode", ".gco", ".g", ".gc"}
@@ -83,8 +85,34 @@ class PrinterStatus:
 class MoonrakerProbe:
     """Small stdlib probe for Moonraker's documented `/printer/info` endpoint."""
 
-    def __init__(self, api_key: str | None = None) -> None:
+    def __init__(self, api_key: str | None = None, single_request: bool | None = None) -> None:
         self._api_key = api_key
+        # None follows HYDRA_UMC_PRINTER3D_SINGLE_REQUEST (off unless it is "1")
+        self._single_request = os.environ.get(SINGLE_REQUEST_ENV, "").strip() == "1" if single_request is None else bool(single_request)
+
+    @property
+    def single_request(self) -> bool:
+        return self._single_request
+
+    @staticmethod
+    def parse_combined(payload: dict[str, object]) -> PrinterStatus | None:
+        """The answer of `/printer/objects/query?webhooks&print_stats=state`: the firmware state (`webhooks`, the same words as `/printer/info`) and, only when the firmware is ready, the print state.
+
+        Fails closed like the two parsers it is made of: anything that is not the expected shape is OFFLINE, a firmware that is not ready is what `parse_info` says, a print that is running,
+        paused or in error wins over ready, and None means the print head is free and the firmware is ready (the caller then reports IDLE)."""
+        if not isinstance(payload, dict):
+            return PrinterStatus(MachineState.OFFLINE, "Moonraker objects/query response is not an object")
+        result = payload.get("result", payload)
+        status = result.get("status", result) if isinstance(result, dict) else None
+        if not isinstance(status, dict):
+            return PrinterStatus(MachineState.OFFLINE, "Moonraker objects/query response is not an object")
+        webhooks = status.get("webhooks")
+        if not isinstance(webhooks, dict):
+            return PrinterStatus(MachineState.OFFLINE, "Moonraker objects/query response is missing webhooks")
+        info = MoonrakerProbe.parse_info(webhooks)
+        if info.state != MachineState.IDLE:
+            return info
+        return MoonrakerProbe.parse_print_stats({"result": {"status": status}}) or info
 
     @staticmethod
     def parse_info(payload: dict[str, object]) -> PrinterStatus:
@@ -175,6 +203,11 @@ class MoonrakerProbe:
         normalized_base_url, problem = _normalize_base_url(base_url)
         if normalized_base_url is None:
             return PrinterStatus(MachineState.OFFLINE, problem)
+
+        if self._single_request:
+            # one request for both readings; the parser answers the final state itself, so a reading that cannot be trusted is OFFLINE as before
+            combined = self._get(f"{normalized_base_url}/printer/objects/query?webhooks&print_stats=state", timeout_seconds, self.parse_combined, self._api_key)
+            return combined  # type: ignore[return-value]
 
         info_status = self._get(f"{normalized_base_url}/printer/info", timeout_seconds, self.parse_info, self._api_key)
         if info_status.state != MachineState.IDLE:  # type: ignore[union-attr]
