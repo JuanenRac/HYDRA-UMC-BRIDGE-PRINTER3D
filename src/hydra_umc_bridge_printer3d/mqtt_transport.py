@@ -58,6 +58,7 @@ from hydra_umc_sdk.bridge_transport import MqttPublish, connect_with_retry, open
 
 from hydra_umc_sdk.global_stop import GlobalStopGuard, GlobalStopSettings, follow_on_connect
 from .execution import with_execution
+from .command_log import CommandStats, key_of, outcome_of
 from .heartbeat import StateHeartbeat, interval_from_environment
 from .moonraker import MoonrakerJobControl, MoonrakerProbe, PrinterBridge, PrinterStatus, api_key_from_env
 
@@ -138,6 +139,8 @@ class PrinterMqttBridge:
         self._base_url = base_url
         self._cell_state = cell_state
         self._clock = clock
+        # command_log.py: one log line per command and counters, read with cmd/metrics
+        self.stats = CommandStats(clock)
         key = api_key if api_key is not None else api_key_from_env()
         self._probe = MoonrakerProbe(key)
         self._control = MoonrakerJobControl(key)
@@ -183,19 +186,36 @@ class PrinterMqttBridge:
         if not topic.startswith(TOPIC_PREFIX):
             return []
         suffix = topic[len(TOPIC_PREFIX) :]
+        started = time.monotonic()
         if len(payload) > MAX_PAYLOAD_BYTES:
-            return _refusal(suffix, f"payload is larger than {MAX_PAYLOAD_BYTES} bytes")
+            out = _refusal(suffix, f"payload is larger than {MAX_PAYLOAD_BYTES} bytes")
+            self._count(suffix, out, started, None)
+            return out
         refused = self.global_stop.refusal(suffix, payload, moving=MOVING_VERBS)
         if refused is not None:
-            return _refusal(suffix, refused)
+            out = _refusal(suffix, refused)
+            self._count(suffix, out, started, key_of(payload))
+            return out
         try:
             out = self._dispatch(suffix, payload)
+            self._count(suffix, out, started, key_of(payload))
             return with_execution(out) if self._publish_execution else out
         except Exception as error:  # noqa: BLE001 - nothing a message does may end the loop
             _LOG.exception("could not handle %s", topic)
-            return _refusal(suffix, f"the command could not be handled: {type(error).__name__}")
+            out = _refusal(suffix, f"the command could not be handled: {type(error).__name__}")
+            if suffix.startswith("cmd/"):
+                self.stats.record(suffix, "error", (time.monotonic() - started) * 1000.0, key_of(payload))
+            return out
+
+    def _count(self, suffix: str, out: list[MqttPublish], started: float, key: str | None) -> None:
+        """Count a command that ended; `cmd/metrics` itself is not counted, and a topic that is not a command is not either."""
+        if not suffix.startswith("cmd/") or suffix == "cmd/metrics":
+            return
+        self.stats.record(suffix, outcome_of([str(item.payload) for item in out if item.topic.endswith("/result")]), (time.monotonic() - started) * 1000.0, key)
 
     def _dispatch(self, suffix: str, payload: bytes) -> list[MqttPublish]:
+        if suffix == "cmd/metrics":
+            return [MqttPublish(f"{TOPIC_PREFIX}metrics", json.dumps(self.stats.snapshot(), sort_keys=True))]
         if suffix == "cmd/status":
             return [MqttPublish(f"{TOPIC_PREFIX}state", _status_payload(self.refresh_status(), int(self._clock() * 1000)), retain=True)]
         if suffix == "cmd/pause":
