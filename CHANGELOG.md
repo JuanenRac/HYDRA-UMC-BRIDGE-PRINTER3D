@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A coverage job in CI:** the suite is run under coverage (lines and branches) on every push and the job fails below a floor that does not go down.
 - **The state of the printer can be published on a timer (`HYDRA_UMC_PRINTER3D_HEARTBEAT_S`, off by default):** with a number of seconds (1 to 3600; anything else means off) the bridge reads Moonraker that often and publishes the retained `state` the way `cmd/status` does, so a consumer sees a fresh `observed_at` between two commands. A reading or a publication that fails is counted and logged and the next round still runs. `heartbeat.py`, `run_forever(heartbeat_interval_s=...)`, `tests/test_heartbeat.py` (11 tests).
 - **The answer to a command is published at least once (QoS 1):** every `cmd/<verb>/result` message, including the refusals, now goes out with QoS 1 like the other bridges (`RESULT_QOS`), so a caller on a flaky link still gets it; the retained `state` stays at QoS 0. `tests/test_result_qos.py` (5 tests).
 - **README: the platform statement:** a note says that where the README speaks of the CM5 it means the pilot bench that runs today, and that the target platform of HYDRA-UMC, an NVIDIA Jetson Orin NX 16 GB, is a design that has not been built or tested.
