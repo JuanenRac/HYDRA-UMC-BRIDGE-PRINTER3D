@@ -32,7 +32,7 @@ import json
 import logging
 import threading
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 from urllib.parse import urlparse, urlunparse
@@ -414,15 +414,3 @@ class MoonrakerSubscriber:
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=self._read_timeout + self.settings.reconnect_seconds + 1.0)
-
-
-def settings_from_table(table: Mapping[str, object]) -> WebSocketSettings:
-    """Used by the service: the ``[websocket]`` table (already checked for unknown keys) -> settings, validated."""
-    settings = WebSocketSettings(
-        enabled=bool(table.get("enabled", False)),
-        url=table.get("url") if isinstance(table.get("url"), str) else None,
-        reconnect_seconds=float(table.get("reconnect_seconds", 5.0)),  # type: ignore[arg-type]
-        telemetry_interval_seconds=float(table.get("telemetry_interval_seconds", 1.0)),  # type: ignore[arg-type]
-    )
-    settings.validate()
-    return settings

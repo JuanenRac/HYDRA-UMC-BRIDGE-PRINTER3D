@@ -358,7 +358,7 @@ def run_forever(
             on_connected=follow_on_connect(guard) if isinstance(guard, GlobalStopGuard) else None,
             **hardening.connect_kwargs(),
         )
-        def send(publish: MqttPublish) -> object:
+        def send(publish: Any) -> object:
             return client.publish(publish.topic, publish.payload, qos=getattr(publish, "qos", 0), retain=publish.retain)  # type: ignore[attr-defined]
 
         if subscriber_factory is not None:
