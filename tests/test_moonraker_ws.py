@@ -208,7 +208,7 @@ class ExecutionTests(unittest.TestCase):
         self.assertIsNone(execution_publish(other))
         self.assertIsNone(execution_publish(ws.MqttPublish(ws.STATE_TOPIC, "not json")))
         self.assertIsNone(execution_publish(ws.MqttPublish(ws.STATE_TOPIC, "[1]")))
-        self.assertEqual([m.topic for m in with_execution([state, other])], [ws.STATE_TOPIC, EXECUTION_TOPIC, ws.TELEMETRY_TOPIC])
+        self.assertEqual([m.topic for m in with_execution([state, other])], [ws.STATE_TOPIC, EXECUTION_TOPIC, "hydra/bridges/printer3d/opcua", ws.TELEMETRY_TOPIC])
 
     def test_the_websocket_tracker_publishes_it_only_when_asked(self):
         plain = ws.PrinterObjectTracker(clock=Clock())
@@ -227,7 +227,7 @@ class ExecutionTests(unittest.TestCase):
         from hydra_umc_bridge_printer3d.moonraker import PrinterStatus
         from hydra_umc_sdk.bridge_contract import CellState
 
-        for flag, expected in ((False, ["state"]), (True, ["state", "execution"])):
+        for flag, expected in ((False, ["state"]), (True, ["state", "execution", "opcua"])):
             bridge = PrinterMqttBridge("http://127.0.0.1:1", lambda: CellState.READY, publish_execution=flag)
             with mock.patch.object(bridge, "refresh_status", return_value=PrinterStatus(MachineState.IDLE, "ready")):
                 out = bridge.handle_message("hydra/bridges/printer3d/cmd/status", b"")
@@ -239,6 +239,31 @@ class ExecutionTests(unittest.TestCase):
         with self.assertRaisesRegex(ConfigError, "unknown key in execution"):
             parse_config({**MINIMAL, "execution": {"on": True}})
 
+
+class OpcuaFleetTests(unittest.TestCase):
+    def test_the_fleet_message_has_the_shape_the_opcua_server_accepts(self):
+        import re
+
+        from hydra_umc_bridge_printer3d.execution import OPCUA_TOPIC, execution_publish, opcua_publish
+
+        state = ws.state_publish(ws.PrinterStatus(MachineState.RUNNING, "printing"), 1234)
+        message = opcua_publish(execution_publish(state))
+        self.assertEqual(message.topic, OPCUA_TOPIC)
+        self.assertFalse(message.retain)
+        body = json.loads(message.payload)
+        self.assertEqual((body["observed_at"], body["vehicle"]), (1234, "printer3d"))
+        self.assertRegex(body["vehicle"], r"^[A-Za-z][A-Za-z0-9_]{0,39}$")
+        by_path = {node["path"]: node for node in body["nodes"]}
+        self.assertEqual(by_path["Fleet/printer3d/execution"], {"path": "Fleet/printer3d/execution", "type": "String", "value": "ACTIVE"})
+        self.assertEqual(by_path["Fleet/printer3d/state"]["value"], "RUNNING")
+        for node in body["nodes"]:
+            self.assertTrue(all(re.match(r"^[A-Za-z][A-Za-z0-9_]{0,39}$", part) for part in node["path"].split("/")))
+
+    def test_a_message_without_a_readable_time_or_state_makes_no_fleet_message(self):
+        from hydra_umc_bridge_printer3d.execution import opcua_publish
+
+        for payload in ("not json", "[1]", json.dumps({"execution": "READY", "state": "IDLE", "observed_at": None}), json.dumps({"execution": 1, "state": "IDLE", "observed_at": 1})):
+            self.assertIsNone(opcua_publish(ws.MqttPublish("x", payload)))
 
 class FakeConnection:
     def __init__(self, messages, error=None):
