@@ -13,6 +13,10 @@ With the websocket switched on in the configuration file the bridge subscribes t
   immediately on ``notify_klippy_shutdown``;
 * ``hydra/bridges/printer3d/telemetry`` (not retained, at most once per ``telemetry_interval_seconds``) with the progress and the temperatures.
 
+With ``[print_complete]`` switched on it also publishes ONE ``hydra/bridges/printer3d/event/print_complete`` (QoS 1, not retained) per print: when
+``print_stats`` went from ``printing`` to ``complete`` and the bed has cooled to ``bed_cold_celsius`` or less. It only announces; whoever moves an arm
+to take the part away (the orchestrator) keeps its own gates and its human confirmation. A bed whose temperature is not known never counts as cold.
+
 Nothing here sends a command to the printer: the only thing written to the socket is the subscription itself. The state is derived with the same
 parsers as the polling probe, so both ways agree; until the first full snapshot arrived, and whenever the socket is lost, the state is ``OFFLINE``
 (fail-closed). While the socket is not healthy the polling of the bridge (``cmd/status`` and the heartbeat) is what keeps working: the bridge
@@ -51,6 +55,7 @@ SUBSCRIBED_OBJECTS: dict[str, None] = {
     "display_status": None,
     "virtual_sdcard": None,
 }
+PRINT_COMPLETE_TOPIC = f"{TOPIC_PREFIX}event/print_complete"
 SUBSCRIBE_ID = 1
 MAX_MESSAGE_BYTES = 256 * 1024
 
@@ -73,6 +78,18 @@ class WebSocketSettings:
             raise ValueError("telemetry_interval_seconds must not be negative")
         if self.url is not None and not self.url.startswith(("ws://", "wss://")):
             raise ValueError("url must be an absolute ws(s) URL")
+
+
+@dataclass(frozen=True)
+class PrintCompleteSettings:
+    """The ``[print_complete]`` table of the configuration file. Off unless ``enabled``."""
+
+    enabled: bool = False
+    bed_cold_celsius: float = 40.0
+
+    def validate(self) -> None:
+        if not 0.0 < self.bed_cold_celsius <= 100.0:
+            raise ValueError("bed_cold_celsius must be above 0 and at most 100")
 
 
 def websocket_url(moonraker_url: str, override: str | None = None) -> str:
@@ -133,8 +150,16 @@ class PrinterObjectTracker:
     Pure: it takes decoded JSON-RPC messages and returns the MQTT messages to publish, so it is tested without a socket.
     """
 
-    def __init__(self, *, clock: Callable[[], float] = time.time, telemetry_interval_seconds: float = 1.0) -> None:
+    def __init__(
+        self,
+        *,
+        clock: Callable[[], float] = time.time,
+        telemetry_interval_seconds: float = 1.0,
+        print_complete: PrintCompleteSettings | None = None,
+    ) -> None:
         self._clock = clock
+        self._complete = print_complete if print_complete is not None and print_complete.enabled else None
+        self._awaiting_cold: str | None = None  # the file of a print that finished and whose bed has not cooled yet (empty when unnamed)
         self._telemetry_interval = telemetry_interval_seconds
         self._objects: dict[str, dict[str, Any]] = {}
         self._have_snapshot = False
@@ -152,6 +177,7 @@ class PrinterObjectTracker:
         self._have_snapshot = False
         self._objects.clear()
         self._klippy_override = None
+        self._awaiting_cold = None  # what was seen before the loss is not current: no event is made up afterwards
         return self._state_if_changed(PrinterStatus(MachineState.OFFLINE, reason))
 
     def status(self) -> PrinterStatus:
@@ -196,9 +222,11 @@ class PrinterObjectTracker:
     def _merge(self, status: object, *, snapshot: bool) -> list[MqttPublish]:
         if not isinstance(status, dict):
             return []
+        before = self._objects.get("print_stats", {}).get("state")
         for name, values in status.items():
             if isinstance(values, dict):
                 self._objects.setdefault(str(name), {}).update(values)
+        self._track_print(before, snapshot)
         if snapshot:
             self._have_snapshot = True
             self._klippy_override = None
@@ -208,7 +236,36 @@ class PrinterObjectTracker:
             self._klippy_override = None
         out = self._state_if_changed(self.status())
         out.extend(self._telemetry())
+        out.extend(self._complete_event())
         return out
+
+    # --- print complete ----------------------------------------------------
+    def _track_print(self, before: object, snapshot: bool) -> None:
+        if self._complete is None:
+            return
+        now = self._objects.get("print_stats", {}).get("state")
+        if now == "printing":
+            self._awaiting_cold = None
+        elif now == "complete" and before == "printing" and not snapshot:
+            name = self._objects["print_stats"].get("filename")
+            self._awaiting_cold = name if isinstance(name, str) else ""
+
+    def _complete_event(self) -> list[MqttPublish]:
+        if self._complete is None or self._awaiting_cold is None:
+            return []
+        bed = _number(self._objects.get("heater_bed", {}).get("temperature"))
+        if bed is None or bed > self._complete.bed_cold_celsius:
+            return []
+        payload = {
+            "event": "print_complete",
+            "filename": self._awaiting_cold or None,
+            "bed_temperature": bed,
+            "bed_cold_celsius": self._complete.bed_cold_celsius,
+            "observed_at": int(self._clock() * 1000),
+            "mode": "notify-only",
+        }
+        self._awaiting_cold = None
+        return [MqttPublish(PRINT_COMPLETE_TOPIC, json.dumps(payload), qos=1)]
 
     # --- publications ------------------------------------------------------
     def _state_if_changed(self, status: PrinterStatus, *, force: bool = False) -> list[MqttPublish]:
@@ -269,6 +326,7 @@ class MoonrakerSubscriber:
         api_key: str | None = None,
         settings: WebSocketSettings | None = None,
         tracker: PrinterObjectTracker | None = None,
+        print_complete: PrintCompleteSettings | None = None,
         connect: ConnectFunction = connect_with_websocket_client,
         read_timeout_seconds: float = 2.0,
     ) -> None:
@@ -277,7 +335,9 @@ class MoonrakerSubscriber:
         self._url = url
         self._publish = publish
         self._headers = {API_KEY_HEADER: api_key} if api_key else {}
-        self.tracker = tracker or PrinterObjectTracker(telemetry_interval_seconds=self.settings.telemetry_interval_seconds)
+        if print_complete is not None:
+            print_complete.validate()
+        self.tracker = tracker or PrinterObjectTracker(telemetry_interval_seconds=self.settings.telemetry_interval_seconds, print_complete=print_complete)
         self._connect = connect
         self._read_timeout = read_timeout_seconds
         self._stop = threading.Event()

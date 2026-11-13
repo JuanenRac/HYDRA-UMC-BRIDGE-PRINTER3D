@@ -121,6 +121,69 @@ class TrackerTests(unittest.TestCase):
         self.assertEqual(telemetry(out)[0]["extruder"], {"temperature": None, "target": None})
 
 
+
+
+class PrintCompleteTests(unittest.TestCase):
+    def setUp(self):
+        self.clock = Clock()
+        self.tracker = ws.PrinterObjectTracker(clock=self.clock, print_complete=ws.PrintCompleteSettings(True, 40.0))
+
+    def events(self, messages):
+        return [json.loads(m.payload) for m in messages if m.topic == ws.PRINT_COMPLETE_TOPIC]
+
+    def test_the_event_waits_for_a_cold_bed_and_is_sent_once(self):
+        self.tracker.handle(snapshot(print_state="printing", bed=60.0))
+        out = self.tracker.handle(update(print_stats={"state": "complete"}))
+        self.assertEqual(self.events(out), [])
+        out = self.tracker.handle(update(heater_bed={"temperature": 41.0}))
+        self.assertEqual(self.events(out), [])
+        out = self.tracker.handle(update(heater_bed={"temperature": 39.5}))
+        event = self.events(out)[0]
+        self.assertEqual((event["filename"], event["bed_temperature"], event["mode"]), ("part.gcode", 39.5, "notify-only"))
+        publish = next(m for m in out if m.topic == ws.PRINT_COMPLETE_TOPIC)
+        self.assertEqual(publish.qos, 1)
+        self.assertFalse(publish.retain)
+        self.assertEqual(self.events(self.tracker.handle(update(heater_bed={"temperature": 30.0}))), [])
+
+    def test_a_new_print_cancels_the_wait(self):
+        self.tracker.handle(snapshot(print_state="printing", bed=60.0))
+        self.tracker.handle(update(print_stats={"state": "complete"}))
+        self.tracker.handle(update(print_stats={"state": "printing"}))
+        self.assertEqual(self.events(self.tracker.handle(update(heater_bed={"temperature": 20.0}))), [])
+
+    def test_a_print_that_was_already_complete_at_the_start_makes_no_event(self):
+        out = self.tracker.handle(snapshot(print_state="complete", bed=20.0))
+        self.assertEqual(self.events(out), [])
+        self.assertEqual(self.events(self.tracker.handle(update(heater_bed={"temperature": 19.0}))), [])
+
+    def test_a_bed_of_unknown_temperature_never_counts_as_cold(self):
+        self.tracker.handle(snapshot(print_state="printing", bed=60.0))
+        self.tracker._objects["heater_bed"].pop("temperature", None)
+        out = self.tracker.handle(update(print_stats={"state": "complete"}))
+        self.assertEqual(self.events(out), [])
+
+    def test_a_lost_socket_forgets_the_pending_event(self):
+        self.tracker.handle(snapshot(print_state="printing", bed=60.0))
+        self.tracker.handle(update(print_stats={"state": "complete"}))
+        self.tracker.lost("gone")
+        self.tracker.handle(snapshot(print_state="complete", bed=20.0))
+        self.assertEqual(self.events(self.tracker.handle(update(heater_bed={"temperature": 19.0}))), [])
+
+    def test_off_by_default_and_the_settings_are_checked(self):
+        tracker = ws.PrinterObjectTracker(clock=self.clock)
+        tracker.handle(snapshot(print_state="printing", bed=60.0))
+        tracker.handle(update(print_stats={"state": "complete"}))
+        self.assertEqual(self.events(tracker.handle(update(heater_bed={"temperature": 20.0}))), [])
+        with self.assertRaises(ValueError):
+            ws.PrintCompleteSettings(True, 0.0).validate()
+        with self.assertRaisesRegex(ConfigError, "needs"):
+            parse_config({**MINIMAL, "print_complete": {"enabled": True}})
+        with self.assertRaisesRegex(ConfigError, "bed_cold_celsius"):
+            parse_config({**MINIMAL, "websocket": {"enabled": True}, "print_complete": {"enabled": True, "bed_cold_celsius": 500}})
+        config = parse_config({**MINIMAL, "websocket": {"enabled": True}, "print_complete": {"enabled": True, "bed_cold_celsius": 35}})
+        self.assertEqual(config.print_complete.bed_cold_celsius, 35.0)
+
+
 class FakeConnection:
     def __init__(self, messages, error=None):
         self.sent = []

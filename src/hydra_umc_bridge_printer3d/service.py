@@ -37,7 +37,7 @@ from hydra_umc_sdk.bridge_transport import BridgeHardening
 from hydra_umc_sdk.global_stop import DEFAULT_TOPIC, GlobalStopSettings
 
 from .heartbeat import MAX_INTERVAL_S, MIN_INTERVAL_S
-from .moonraker_ws import MoonrakerSubscriber, WebSocketSettings, websocket_url
+from .moonraker_ws import MoonrakerSubscriber, PrintCompleteSettings, WebSocketSettings, websocket_url
 
 CONFIG_ENVIRONMENT = "HYDRA_UMC_BRIDGE_PRINTER3D_CONFIG"
 DEFAULT_CONFIG_PATH = "/etc/hydra-umc/bridge-printer3d.toml"
@@ -81,6 +81,7 @@ class ServiceConfig:
     hardening: BridgeHardening | None = None  # the [hardening] table; None: the environment of the service decides
     heartbeat_seconds: float | None = None  # the [heartbeat] table; None: the environment of the service decides; 0 is off
     websocket: WebSocketSettings = field(default_factory=WebSocketSettings)  # the [websocket] table; off by default
+    print_complete: PrintCompleteSettings = field(default_factory=PrintCompleteSettings)  # the [print_complete] table; off by default
 
 
 def _table(parent: dict, key: str) -> dict:
@@ -111,7 +112,7 @@ def _kind(table: dict, key: str, kind: type, where: str, default: object = None)
 def parse_config(data: dict) -> ServiceConfig:
     """Turn the parsed TOML into the configuration, refusing what is unknown or wrong."""
 
-    _only(data, {"mqtt", "moonraker", "cell_state", "idempotency", "global_stop", "hardening", "heartbeat", "websocket"}, "the file")
+    _only(data, {"mqtt", "moonraker", "cell_state", "idempotency", "global_stop", "hardening", "heartbeat", "websocket", "print_complete"}, "the file")
     mqtt_table = _table(data, "mqtt")
     _only(mqtt_table, {"host", "port", "client_id", "max_connect_attempts", "connect_retry_delay_seconds"}, "mqtt")
     d = MqttSettings()
@@ -196,7 +197,19 @@ def parse_config(data: dict) -> ServiceConfig:
         websocket.validate()
     except ValueError as error:
         raise ConfigError(f"websocket: {error}") from error
-    return ServiceConfig(mqtt, moonraker, cell, _kind(idem, "path", str, "idempotency"), global_stop, hardening, heartbeat, websocket)
+    pc_table = _table(data, "print_complete")
+    _only(pc_table, {"enabled", "bed_cold_celsius"}, "print_complete")
+    print_complete = PrintCompleteSettings(
+        _kind(pc_table, "enabled", bool, "print_complete", False),
+        _kind(pc_table, "bed_cold_celsius", float, "print_complete", PrintCompleteSettings().bed_cold_celsius),
+    )
+    try:
+        print_complete.validate()
+    except ValueError as error:
+        raise ConfigError(f"print_complete: {error}") from error
+    if print_complete.enabled and not websocket.enabled:
+        raise ConfigError("print_complete needs [websocket] enabled: the event is made from the stream of the bed temperature")
+    return ServiceConfig(mqtt, moonraker, cell, _kind(idem, "path", str, "idempotency"), global_stop, hardening, heartbeat, websocket, print_complete)
 
 
 def load_config(path: str | os.PathLike[str]) -> ServiceConfig:
@@ -267,7 +280,7 @@ def subscriber_factory(config: ServiceConfig, *, connect=None):
 
     url = websocket_url(config.moonraker.url or "", config.websocket.url)
     extra = {} if connect is None else {"connect": connect}
-    return lambda publish: MoonrakerSubscriber(url, publish, api_key=api_key_from_env(), settings=config.websocket, **extra)
+    return lambda publish: MoonrakerSubscriber(url, publish, api_key=api_key_from_env(), settings=config.websocket, print_complete=config.print_complete, **extra)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

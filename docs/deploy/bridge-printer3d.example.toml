@@ -53,6 +53,12 @@ enabled = false
 reconnect_seconds = 5.0
 telemetry_interval_seconds = 1.0
 
+# Announce that a print is finished and the bed is cold, so that whoever moves an arm can take the part away (the event
+# hydra/bridges/printer3d/event/print_complete; it only announces, the arm keeps its own gates and confirmation). Needs [websocket].
+[print_complete]
+enabled = false
+bed_cold_celsius = 40.0
+
 # Publish the state of the printer every so many seconds (0, or this table absent: off, unless HYDRA_UMC_PRINTER3D_HEARTBEAT_S is set).
 [heartbeat]
 interval_seconds = 0
