@@ -37,6 +37,7 @@ from hydra_umc_sdk.bridge_transport import BridgeHardening
 from hydra_umc_sdk.global_stop import DEFAULT_TOPIC, GlobalStopSettings
 
 from .heartbeat import MAX_INTERVAL_S, MIN_INTERVAL_S
+from .moonraker_ws import MoonrakerSubscriber, WebSocketSettings, websocket_url
 
 CONFIG_ENVIRONMENT = "HYDRA_UMC_BRIDGE_PRINTER3D_CONFIG"
 DEFAULT_CONFIG_PATH = "/etc/hydra-umc/bridge-printer3d.toml"
@@ -79,6 +80,7 @@ class ServiceConfig:
     global_stop: GlobalStopSettings = field(default_factory=GlobalStopSettings)
     hardening: BridgeHardening | None = None  # the [hardening] table; None: the environment of the service decides
     heartbeat_seconds: float | None = None  # the [heartbeat] table; None: the environment of the service decides; 0 is off
+    websocket: WebSocketSettings = field(default_factory=WebSocketSettings)  # the [websocket] table; off by default
 
 
 def _table(parent: dict, key: str) -> dict:
@@ -109,7 +111,7 @@ def _kind(table: dict, key: str, kind: type, where: str, default: object = None)
 def parse_config(data: dict) -> ServiceConfig:
     """Turn the parsed TOML into the configuration, refusing what is unknown or wrong."""
 
-    _only(data, {"mqtt", "moonraker", "cell_state", "idempotency", "global_stop", "hardening", "heartbeat"}, "the file")
+    _only(data, {"mqtt", "moonraker", "cell_state", "idempotency", "global_stop", "hardening", "heartbeat", "websocket"}, "the file")
     mqtt_table = _table(data, "mqtt")
     _only(mqtt_table, {"host", "port", "client_id", "max_connect_attempts", "connect_retry_delay_seconds"}, "mqtt")
     d = MqttSettings()
@@ -181,7 +183,20 @@ def parse_config(data: dict) -> ServiceConfig:
     heartbeat = _kind(heartbeat_table, "interval_seconds", float, "heartbeat")
     if heartbeat is not None and heartbeat != 0.0 and not MIN_INTERVAL_S <= heartbeat <= MAX_INTERVAL_S:
         raise ConfigError(f"heartbeat.interval_seconds must be 0 (off) or {MIN_INTERVAL_S:g} to {MAX_INTERVAL_S:g}")
-    return ServiceConfig(mqtt, moonraker, cell, _kind(idem, "path", str, "idempotency"), global_stop, hardening, heartbeat)
+    ws_table = _table(data, "websocket")
+    _only(ws_table, {"enabled", "url", "reconnect_seconds", "telemetry_interval_seconds"}, "websocket")
+    ws_defaults = WebSocketSettings()
+    websocket = WebSocketSettings(
+        _kind(ws_table, "enabled", bool, "websocket", False),
+        _kind(ws_table, "url", str, "websocket"),
+        _kind(ws_table, "reconnect_seconds", float, "websocket", ws_defaults.reconnect_seconds),
+        _kind(ws_table, "telemetry_interval_seconds", float, "websocket", ws_defaults.telemetry_interval_seconds),
+    )
+    try:
+        websocket.validate()
+    except ValueError as error:
+        raise ConfigError(f"websocket: {error}") from error
+    return ServiceConfig(mqtt, moonraker, cell, _kind(idem, "path", str, "idempotency"), global_stop, hardening, heartbeat, websocket)
 
 
 def load_config(path: str | os.PathLike[str]) -> ServiceConfig:
@@ -243,6 +258,18 @@ def build_bridge(config: ServiceConfig, *, clock: Callable[[], float] = time.tim
     )
 
 
+def subscriber_factory(config: ServiceConfig, *, connect=None):
+    """None when the websocket is off; otherwise the function that ``run_forever`` calls with the publish function to get the subscriber."""
+
+    if not config.websocket.enabled:
+        return None
+    from .moonraker import api_key_from_env
+
+    url = websocket_url(config.moonraker.url or "", config.websocket.url)
+    extra = {} if connect is None else {"connect": connect}
+    return lambda publish: MoonrakerSubscriber(url, publish, api_key=api_key_from_env(), settings=config.websocket, **extra)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="hydra_umc_bridge_printer3d", description="HYDRA-UMC 3D-printer bridge service")
     parser.add_argument("--config", default=os.environ.get(CONFIG_ENVIRONMENT, DEFAULT_CONFIG_PATH), help=f"configuration file (default: ${CONFIG_ENVIRONMENT} or {DEFAULT_CONFIG_PATH})")
@@ -287,6 +314,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             connect_retry_delay_seconds=mqtt.connect_retry_delay_seconds,
             hardening=hardening,
             heartbeat_interval_s=config.heartbeat_seconds,
+            subscriber_factory=subscriber_factory(config),
         )
     except Exception:  # noqa: BLE001
         _LOG.exception("the bridge stopped")

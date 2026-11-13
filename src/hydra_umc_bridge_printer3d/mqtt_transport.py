@@ -305,6 +305,7 @@ def run_forever(
     password: str | None = None,
     hardening: BridgeHardening | None = None,
     heartbeat_interval_s: float | None = None,
+    subscriber_factory: "Callable[[Callable[[MqttPublish], object]], Any] | None" = None,
 ) -> None:
     """Connect to a real HYDRA-UMC-MQTT-BROKER and dispatch forever.
 
@@ -323,6 +324,9 @@ def run_forever(
     the broker publishes "offline" (the Last Will) if the connection is lost.
 
     `heartbeat_interval_s` (default: `HYDRA_UMC_PRINTER3D_HEARTBEAT_S`, off when unset) publishes the state every that many seconds; see heartbeat.py.
+
+    `subscriber_factory` (the websocket of the service, off unless its table says so) receives the function that publishes a message and returns the
+    subscriber to run (see moonraker_ws.py); while that subscriber is not healthy the polling of the heartbeat is what keeps the state fresh.
     """
 
     if password is not None and username is None:
@@ -334,6 +338,7 @@ def run_forever(
     guard = getattr(bridge, "global_stop", None)  # a bridge object that is not one of ours has none: nothing to follow
     interval = heartbeat_interval_s if heartbeat_interval_s is not None else interval_from_environment()
     heartbeat: StateHeartbeat | None = None
+    subscriber: Any = None
     try:
         client = open_bridge_client(
             host,
@@ -348,15 +353,24 @@ def run_forever(
             on_connected=follow_on_connect(guard) if isinstance(guard, GlobalStopGuard) else None,
             **hardening.connect_kwargs(),
         )
+        def send(publish: MqttPublish) -> object:
+            return client.publish(publish.topic, publish.payload, qos=getattr(publish, "qos", 0), retain=publish.retain)  # type: ignore[attr-defined]
+
+        if subscriber_factory is not None:
+            subscriber = subscriber_factory(send)
+            subscriber.start()
         if interval > 0.0:
             heartbeat = StateHeartbeat(
-                lambda: bridge.handle_message(f"{TOPIC_PREFIX}cmd/status", b""),
-                lambda publish: client.publish(publish.topic, publish.payload, qos=getattr(publish, "qos", 0), retain=publish.retain),  # type: ignore[attr-defined]
+                # the websocket already keeps the state fresh while it is healthy; the polling takes over when it is not
+                lambda: [] if subscriber is not None and subscriber.healthy else bridge.handle_message(f"{TOPIC_PREFIX}cmd/status", b""),
+                send,
                 interval,
             )
             heartbeat.start()
         client.loop_forever()  # type: ignore[attr-defined]
     finally:
+        if subscriber is not None:
+            subscriber.stop()
         if heartbeat is not None:
             heartbeat.stop()
         dispatcher.close(wait=False)

@@ -44,6 +44,15 @@ connect_backoff_factor = 2.0
 connect_max_delay_seconds = 30.0
 connect_jitter = 0.25
 
+# Follow Moonraker over its websocket instead of asking it: the state and the progress and temperatures arrive as they change, and
+# "klippy shutdown" is published at once. Read-only; needs the optional package websocket-client. Off by default. While the
+# socket is down the bridge keeps answering cmd/status and, if the heartbeat is on, polls (it falls back by itself).
+[websocket]
+enabled = false
+# url = "ws://127.0.0.1:7125/websocket"   # default: derived from [moonraker] url
+reconnect_seconds = 5.0
+telemetry_interval_seconds = 1.0
+
 # Publish the state of the printer every so many seconds (0, or this table absent: off, unless HYDRA_UMC_PRINTER3D_HEARTBEAT_S is set).
 [heartbeat]
 interval_seconds = 0
