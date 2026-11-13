@@ -1,0 +1,44 @@
+# =============================================================================
+# HYDRA-UMC-BRIDGE-PRINTER3D - systemd unit
+# Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
+# GPL-3.0-or-later - see LICENSE
+# =============================================================================
+# The bridge coordinates a 3D printer through Moonraker; it never streams G-code. The configuration is
+# /etc/hydra-umc/bridge-printer3d.toml (example: docs/deploy/bridge-printer3d.example.toml); the MQTT credentials and the
+# Moonraker API key go in /etc/hydra-umc/bridge-printer3d.env (readable by root only). With no valid configuration the
+# unit does nothing: ConditionPathExists skips it without a file, and ExecStartPre fails on an invalid one.
+[Unit]
+Description=HYDRA-UMC-BRIDGE-PRINTER3D 3D-printer coordination and job gate
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/hydra-umc/bridge-printer3d.toml
+
+[Service]
+Type=simple
+User=hydra-umc-bridge-printer3d
+Group=hydra-umc-bridge-printer3d
+WorkingDirectory=/opt/hydra-umc/bridge-printer3d
+Environment=PYTHONPATH=/opt/hydra-umc/bridge-printer3d/src
+Environment=HYDRA_UMC_BRIDGE_PRINTER3D_CONFIG=/etc/hydra-umc/bridge-printer3d.toml
+EnvironmentFile=-/etc/hydra-umc/bridge-printer3d.env
+ExecStartPre=/usr/bin/python3 -m hydra_umc_bridge_printer3d --check
+ExecStart=/usr/bin/python3 -m hydra_umc_bridge_printer3d
+Restart=on-failure
+RestartSec=5
+StateDirectory=hydra-umc-bridge-printer3d
+RuntimeDirectory=hydra-umc
+RuntimeDirectoryPreserve=yes
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+DevicePolicy=closed
+MemoryAccounting=yes
+MemoryHigh=128M
+MemoryMax=192M
+
+[Install]
+WantedBy=multi-user.target
