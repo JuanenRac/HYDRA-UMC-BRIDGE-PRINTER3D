@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The state of the printer can be published on a timer (`HYDRA_UMC_PRINTER3D_HEARTBEAT_S`, off by default):** with a number of seconds (1 to 3600; anything else means off) the bridge reads Moonraker that often and publishes the retained `state` the way `cmd/status` does, so a consumer sees a fresh `observed_at` between two commands. A reading or a publication that fails is counted and logged and the next round still runs. `heartbeat.py`, `run_forever(heartbeat_interval_s=...)`, `tests/test_heartbeat.py` (11 tests).
 - **README: the platform statement:** a note says that where the README speaks of the CM5 it means the pilot bench that runs today, and that the target platform of HYDRA-UMC, an NVIDIA Jetson Orin NX 16 GB, is a design that has not been built or tested.
 - **The tests have a coverage floor of 94 %:** `tools/coverage_floor.json` holds the measured line and branch coverage of the bridge, rounded down (94.8 % measured in the CI environment), and `python tools/hydra_project_tool.py coverage` warns when it falls below it (a warning, not a CI check). Tooling only: no behaviour changes.
 ## [0.2.3] - A visible simulation bench: the workflow "Simulation bench" runs the emulators and fakes of the bridge without hardware on every push, by hand and once a week; docs/SIMULATION.md says what it exercises and what it cannot show. (and 1 more changes)
