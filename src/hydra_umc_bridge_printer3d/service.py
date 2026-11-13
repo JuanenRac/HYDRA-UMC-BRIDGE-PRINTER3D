@@ -82,6 +82,7 @@ class ServiceConfig:
     heartbeat_seconds: float | None = None  # the [heartbeat] table; None: the environment of the service decides; 0 is off
     websocket: WebSocketSettings = field(default_factory=WebSocketSettings)  # the [websocket] table; off by default
     print_complete: PrintCompleteSettings = field(default_factory=PrintCompleteSettings)  # the [print_complete] table; off by default
+    publish_execution: bool = False  # the [execution] table: the MTConnect execution value after every state
 
 
 def _table(parent: dict, key: str) -> dict:
@@ -112,7 +113,7 @@ def _kind(table: dict, key: str, kind: type, where: str, default: object = None)
 def parse_config(data: dict) -> ServiceConfig:
     """Turn the parsed TOML into the configuration, refusing what is unknown or wrong."""
 
-    _only(data, {"mqtt", "moonraker", "cell_state", "idempotency", "global_stop", "hardening", "heartbeat", "websocket", "print_complete"}, "the file")
+    _only(data, {"mqtt", "moonraker", "cell_state", "idempotency", "global_stop", "hardening", "heartbeat", "websocket", "print_complete", "execution"}, "the file")
     mqtt_table = _table(data, "mqtt")
     _only(mqtt_table, {"host", "port", "client_id", "max_connect_attempts", "connect_retry_delay_seconds"}, "mqtt")
     d = MqttSettings()
@@ -197,6 +198,9 @@ def parse_config(data: dict) -> ServiceConfig:
         websocket.validate()
     except ValueError as error:
         raise ConfigError(f"websocket: {error}") from error
+    exec_table = _table(data, "execution")
+    _only(exec_table, {"enabled"}, "execution")
+    execution = _kind(exec_table, "enabled", bool, "execution", False)
     pc_table = _table(data, "print_complete")
     _only(pc_table, {"enabled", "bed_cold_celsius"}, "print_complete")
     print_complete = PrintCompleteSettings(
@@ -209,7 +213,7 @@ def parse_config(data: dict) -> ServiceConfig:
         raise ConfigError(f"print_complete: {error}") from error
     if print_complete.enabled and not websocket.enabled:
         raise ConfigError("print_complete needs [websocket] enabled: the event is made from the stream of the bed temperature")
-    return ServiceConfig(mqtt, moonraker, cell, _kind(idem, "path", str, "idempotency"), global_stop, hardening, heartbeat, websocket, print_complete)
+    return ServiceConfig(mqtt, moonraker, cell, _kind(idem, "path", str, "idempotency"), global_stop, hardening, heartbeat, websocket, print_complete, execution)
 
 
 def load_config(path: str | os.PathLike[str]) -> ServiceConfig:
@@ -268,6 +272,7 @@ def build_bridge(config: ServiceConfig, *, clock: Callable[[], float] = time.tim
         idempotency,
         clock=clock,
         global_stop=config.global_stop,
+        publish_execution=config.publish_execution,
     )
 
 
@@ -280,7 +285,7 @@ def subscriber_factory(config: ServiceConfig, *, connect=None):
 
     url = websocket_url(config.moonraker.url or "", config.websocket.url)
     extra = {} if connect is None else {"connect": connect}
-    return lambda publish: MoonrakerSubscriber(url, publish, api_key=api_key_from_env(), settings=config.websocket, print_complete=config.print_complete, **extra)
+    return lambda publish: MoonrakerSubscriber(url, publish, api_key=api_key_from_env(), settings=config.websocket, print_complete=config.print_complete, publish_execution=config.publish_execution, **extra)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

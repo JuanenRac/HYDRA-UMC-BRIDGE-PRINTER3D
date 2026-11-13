@@ -59,6 +59,11 @@ telemetry_interval_seconds = 1.0
 enabled = false
 bed_cold_celsius = 40.0
 
+# After every state the bridge publishes, publish the MTConnect execution value that goes with it (READY, ACTIVE, INTERRUPTED,
+# STOPPED or UNAVAILABLE) on hydra/bridges/printer3d/execution, for the MTConnect and OPC UA adapters. Read-only. Off by default.
+[execution]
+enabled = false
+
 # Publish the state of the printer every so many seconds (0, or this table absent: off, unless HYDRA_UMC_PRINTER3D_HEARTBEAT_S is set).
 [heartbeat]
 interval_seconds = 0

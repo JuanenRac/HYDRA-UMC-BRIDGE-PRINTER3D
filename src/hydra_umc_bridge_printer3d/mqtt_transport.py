@@ -57,6 +57,7 @@ from hydra_umc_sdk.bridge_transport import MessageDispatcher as SharedMessageDis
 from hydra_umc_sdk.bridge_transport import MqttPublish, connect_with_retry, open_bridge_client  # noqa: F401
 
 from hydra_umc_sdk.global_stop import GlobalStopGuard, GlobalStopSettings, follow_on_connect
+from .execution import with_execution
 from .heartbeat import StateHeartbeat, interval_from_environment
 from .moonraker import MoonrakerJobControl, MoonrakerProbe, PrinterBridge, PrinterStatus, api_key_from_env
 
@@ -121,6 +122,7 @@ class PrinterMqttBridge:
         api_key: str | None = None,
         clock: Callable[[], float] = time.time,
         global_stop: GlobalStopGuard | GlobalStopSettings | None = None,
+        publish_execution: bool = False,
     ) -> None:
         # docs/BRIDGE_CONTRACT.md: the idempotency key of a job is handled once; a repeat gets the answer that was given, so a repeated start never starts a second print
         self._idempotency = idempotency
@@ -131,6 +133,8 @@ class PrinterMqttBridge:
             self.global_stop = GlobalStopGuard(global_stop)
         else:
             self.global_stop = GlobalStopGuard.from_environment(GLOBAL_STOP_ENVIRONMENT_NAME)
+        # execution.py: after every `state` message, the MTConnect execution value that goes with it (off unless asked for)
+        self._publish_execution = publish_execution
         self._base_url = base_url
         self._cell_state = cell_state
         self._clock = clock
@@ -185,7 +189,8 @@ class PrinterMqttBridge:
         if refused is not None:
             return _refusal(suffix, refused)
         try:
-            return self._dispatch(suffix, payload)
+            out = self._dispatch(suffix, payload)
+            return with_execution(out) if self._publish_execution else out
         except Exception as error:  # noqa: BLE001 - nothing a message does may end the loop
             _LOG.exception("could not handle %s", topic)
             return _refusal(suffix, f"the command could not be handled: {type(error).__name__}")

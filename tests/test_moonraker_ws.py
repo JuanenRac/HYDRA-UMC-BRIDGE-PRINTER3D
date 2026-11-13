@@ -184,6 +184,62 @@ class PrintCompleteTests(unittest.TestCase):
         self.assertEqual(config.print_complete.bed_cold_celsius, 35.0)
 
 
+
+class ExecutionTests(unittest.TestCase):
+    def test_the_mapping_is_the_documented_one_and_fails_closed(self):
+        from hydra_umc_bridge_printer3d.execution import execution_state
+
+        self.assertEqual(
+            [execution_state(s) for s in (MachineState.IDLE, MachineState.RUNNING, MachineState.HOLDING, MachineState.FAULT, MachineState.OFFLINE)],
+            ["READY", "ACTIVE", "INTERRUPTED", "STOPPED", "UNAVAILABLE"],
+        )
+        self.assertEqual(execution_state("nonsense"), "UNAVAILABLE")
+        self.assertEqual(execution_state(None), "UNAVAILABLE")
+
+    def test_only_a_readable_state_message_gets_an_execution(self):
+        from hydra_umc_bridge_printer3d.execution import EXECUTION_TOPIC, execution_publish, with_execution
+
+        state = ws.state_publish(ws.PrinterStatus(MachineState.RUNNING, "printing"), 5)
+        extra = execution_publish(state)
+        self.assertEqual(extra.topic, EXECUTION_TOPIC)
+        self.assertTrue(extra.retain)
+        self.assertEqual(json.loads(extra.payload), {"execution": "ACTIVE", "state": "RUNNING", "observed_at": 5})
+        other = ws.MqttPublish(ws.TELEMETRY_TOPIC, "{}")
+        self.assertIsNone(execution_publish(other))
+        self.assertIsNone(execution_publish(ws.MqttPublish(ws.STATE_TOPIC, "not json")))
+        self.assertIsNone(execution_publish(ws.MqttPublish(ws.STATE_TOPIC, "[1]")))
+        self.assertEqual([m.topic for m in with_execution([state, other])], [ws.STATE_TOPIC, EXECUTION_TOPIC, ws.TELEMETRY_TOPIC])
+
+    def test_the_websocket_tracker_publishes_it_only_when_asked(self):
+        plain = ws.PrinterObjectTracker(clock=Clock())
+        self.assertNotIn("execution", [m.topic.rsplit("/", 1)[-1] for m in plain.handle(snapshot())])
+        on = ws.PrinterObjectTracker(clock=Clock(), publish_execution=True)
+        out = on.handle(snapshot(print_state="printing"))
+        execution = [json.loads(m.payload) for m in out if m.topic.endswith("/execution")]
+        self.assertEqual(execution[0]["execution"], "ACTIVE")
+        out = on.handle({"method": "notify_klippy_shutdown", "params": []})
+        self.assertEqual(json.loads(next(m for m in out if m.topic.endswith("/execution")).payload)["execution"], "STOPPED")
+
+    def test_the_bridge_adds_it_to_a_status_answer_only_when_asked(self):
+        from unittest import mock
+
+        from hydra_umc_bridge_printer3d import PrinterMqttBridge
+        from hydra_umc_bridge_printer3d.moonraker import PrinterStatus
+        from hydra_umc_sdk.bridge_contract import CellState
+
+        for flag, expected in ((False, ["state"]), (True, ["state", "execution"])):
+            bridge = PrinterMqttBridge("http://127.0.0.1:1", lambda: CellState.READY, publish_execution=flag)
+            with mock.patch.object(bridge, "refresh_status", return_value=PrinterStatus(MachineState.IDLE, "ready")):
+                out = bridge.handle_message("hydra/bridges/printer3d/cmd/status", b"")
+            self.assertEqual([m.topic.rsplit("/", 1)[-1] for m in out], expected)
+
+    def test_the_configuration_switch_is_off_by_default(self):
+        self.assertFalse(parse_config(MINIMAL).publish_execution)
+        self.assertTrue(parse_config({**MINIMAL, "execution": {"enabled": True}}).publish_execution)
+        with self.assertRaisesRegex(ConfigError, "unknown key in execution"):
+            parse_config({**MINIMAL, "execution": {"on": True}})
+
+
 class FakeConnection:
     def __init__(self, messages, error=None):
         self.sent = []

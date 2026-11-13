@@ -40,6 +40,7 @@ from urllib.parse import urlparse, urlunparse
 from hydra_umc_sdk.bridge_contract import MachineState
 from hydra_umc_sdk.bridge_transport import MqttPublish
 
+from .execution import with_execution
 from .moonraker import API_KEY_HEADER, MoonrakerProbe, PrinterStatus
 
 TOPIC_PREFIX = "hydra/bridges/printer3d/"
@@ -156,8 +157,10 @@ class PrinterObjectTracker:
         clock: Callable[[], float] = time.time,
         telemetry_interval_seconds: float = 1.0,
         print_complete: PrintCompleteSettings | None = None,
+        publish_execution: bool = False,
     ) -> None:
         self._clock = clock
+        self._publish_execution = publish_execution
         self._complete = print_complete if print_complete is not None and print_complete.enabled else None
         self._awaiting_cold: str | None = None  # the file of a print that finished and whose bed has not cooled yet (empty when unnamed)
         self._telemetry_interval = telemetry_interval_seconds
@@ -273,7 +276,8 @@ class PrinterObjectTracker:
         if key == self._last_state and not force:
             return []
         self._last_state = key
-        return [state_publish(status, int(self._clock() * 1000))]
+        message = state_publish(status, int(self._clock() * 1000))
+        return with_execution([message]) if self._publish_execution else [message]
 
     def _telemetry(self) -> list[MqttPublish]:
         now = self._clock()
@@ -327,6 +331,7 @@ class MoonrakerSubscriber:
         settings: WebSocketSettings | None = None,
         tracker: PrinterObjectTracker | None = None,
         print_complete: PrintCompleteSettings | None = None,
+        publish_execution: bool = False,
         connect: ConnectFunction = connect_with_websocket_client,
         read_timeout_seconds: float = 2.0,
     ) -> None:
@@ -337,7 +342,7 @@ class MoonrakerSubscriber:
         self._headers = {API_KEY_HEADER: api_key} if api_key else {}
         if print_complete is not None:
             print_complete.validate()
-        self.tracker = tracker or PrinterObjectTracker(telemetry_interval_seconds=self.settings.telemetry_interval_seconds, print_complete=print_complete)
+        self.tracker = tracker or PrinterObjectTracker(telemetry_interval_seconds=self.settings.telemetry_interval_seconds, print_complete=print_complete, publish_execution=publish_execution)
         self._connect = connect
         self._read_timeout = read_timeout_seconds
         self._stop = threading.Event()
