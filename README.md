@@ -160,6 +160,8 @@ Topics under `hydra/bridges/printer3d/`; every command is answered on `<verb>/re
 | Variable | Default | What it sets |
 |---|---|---|
 | `MOONRAKER_API_KEY` | unset (no key) | the Moonraker API key, sent as `X-Api-Key` |
+| `HYDRA_UMC_PRINTER3D_IN_DOUBT_CONSULT` | off | `1` answers a repeated job or start key whose first attempt left no answer with what Moonraker reports now, instead of refusing it; nothing is run again |
+| `HYDRA_UMC_PRINTER3D_COMMAND_CORRELATION` | off | `1` repeats the `request_id` of a command in its answers and lets `cmd/start` name the `sha256` and `profile_id` of its file, checked against the file facts given to the bridge; without it both fields are ignored |
 | `HYDRA_UMC_PRINTER3D_GLOBAL_STOP` | off | `1` follows the global stop of the server: while the last announcement on the retained topic `hydra/swarm/safety/estop` says `SAFE_STOP` (or cannot be read), the bridge refuses with a reason: a resume, a start and a job (an abort passes); only `READY` ends it. `HYDRA_UMC_PRINTER3D_GLOBAL_STOP_TOPIC` changes the topic and `HYDRA_UMC_PRINTER3D_GLOBAL_STOP_STRICT=1` also refuses until the first announcement arrives |
 | `HYDRA_MQTT_USERNAME` | none | The MQTT user name; the broker binds it to a client-ID prefix |
 | `HYDRA_MQTT_PASSWORD` | none | The password; only valid together with the user name |

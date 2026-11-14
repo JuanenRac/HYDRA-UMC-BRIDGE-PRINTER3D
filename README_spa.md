@@ -160,6 +160,8 @@ Topics bajo `hydra/bridges/printer3d/`; cada orden se responde en `<verbo>/resul
 | Variable | Por defecto | Qué fija |
 |---|---|---|
 | `MOONRAKER_API_KEY` | sin definir (sin clave) | la clave de API de Moonraker, enviada como `X-Api-Key` |
+| `HYDRA_UMC_PRINTER3D_IN_DOUBT_CONSULT` | desactivado | `1` responde a una clave repetida de trabajo o de inicio cuyo primer intento no dejó respuesta con lo que Moonraker informa ahora, en lugar de rechazarla; no se ejecuta nada de nuevo |
+| `HYDRA_UMC_PRINTER3D_COMMAND_CORRELATION` | desactivado | `1` repite el `request_id` de un comando en sus respuestas y permite que `cmd/start` indique el `sha256` y el `profile_id` de su archivo, comprobados con los datos del archivo que se den al bridge; sin él ambos campos se ignoran |
 | `HYDRA_UMC_PRINTER3D_GLOBAL_STOP` | desactivado | `1` sigue la parada global del servidor: mientras el último anuncio del tema retenido `hydra/swarm/safety/estop` diga `SAFE_STOP` (o no se pueda leer), el bridge rechaza con un motivo: una reanudación, un inicio y un trabajo (un aborto pasa); solo `READY` lo termina. `HYDRA_UMC_PRINTER3D_GLOBAL_STOP_TOPIC` cambia el tema y `HYDRA_UMC_PRINTER3D_GLOBAL_STOP_STRICT=1` rechaza también hasta que llegue el primer anuncio |
 | `HYDRA_MQTT_USERNAME` | ninguno | El usuario MQTT; el broker lo liga a un prefijo de ID de cliente |
 | `HYDRA_MQTT_PASSWORD` | ninguno | La contraseña; solo vale junto con el usuario |

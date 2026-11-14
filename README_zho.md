@@ -160,6 +160,8 @@ flowchart LR
 | 变量 | 默认值 | 设置内容 |
 |---|---|---|
 | `MOONRAKER_API_KEY` | 未设置（无密钥） | Moonraker API 密钥，以 `X-Api-Key` 发送 |
+| `HYDRA_UMC_PRINTER3D_IN_DOUBT_CONSULT` | 关闭 | `1` 时，对首次尝试未留下应答的重复任务键或启动键，不再直接拒绝，而是用 Moonraker 当前上报的状态作答；不会再次执行任何操作 |
+| `HYDRA_UMC_PRINTER3D_COMMAND_CORRELATION` | 关闭 | `1` 时，应答中会重复命令的 `request_id`，并允许 `cmd/start` 指明其文件的 `sha256` 和 `profile_id`，并与提供给 bridge 的文件信息核对；关闭时这两个字段会被忽略 |
 | `HYDRA_UMC_PRINTER3D_GLOBAL_STOP` | 关闭 | `1` 跟随服务器的全局停止：只要保留主题 `hydra/swarm/safety/estop` 上最新的通知是 `SAFE_STOP`（或无法读取），桥接就会带原因拒绝：恢复、启动和任务（中止放行）；只有 `READY` 才能解除。`HYDRA_UMC_PRINTER3D_GLOBAL_STOP_TOPIC` 可更改主题，`HYDRA_UMC_PRINTER3D_GLOBAL_STOP_STRICT=1` 会在收到第一条通知之前也拒绝 |
 | `HYDRA_MQTT_USERNAME` | 无 | MQTT 用户名；代理将其绑定到客户端 ID 前缀 |
 | `HYDRA_MQTT_PASSWORD` | 无 | 密码；只能与用户名一起使用 |
