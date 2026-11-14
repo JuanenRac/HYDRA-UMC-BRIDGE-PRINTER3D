@@ -160,6 +160,8 @@ flowchart LR
 | 変数 | 既定値 | 設定する内容 |
 |---|---|---|
 | `MOONRAKER_API_KEY` | 未設定（キーなし） | Moonraker の API キー（`X-Api-Key` として送信） |
+| `HYDRA_UMC_PRINTER3D_IN_DOUBT_CONSULT` | オフ | `1` にすると、最初の試行が応答を残さなかった再送のジョブキーまたは開始キーを拒否せず、Moonraker が現在報告している状態で応答します。何も再実行されません |
+| `HYDRA_UMC_PRINTER3D_COMMAND_CORRELATION` | オフ | `1` にすると、コマンドの `request_id` を応答に繰り返し、`cmd/start` がファイルの `sha256` と `profile_id` を指定できます。指定値はブリッジに渡したファイル情報と照合されます。オフの間は両方のフィールドが無視されます |
 | `HYDRA_UMC_PRINTER3D_GLOBAL_STOP` | オフ | `1` でサーバーのグローバル停止に従います。保持トピック `hydra/swarm/safety/estop` の最新の通知が `SAFE_STOP`（または読み取れない）の間、ブリッジは理由を付けて次を拒否します：再開、開始とジョブ（中止は通す）。解除は `READY` のみです。`HYDRA_UMC_PRINTER3D_GLOBAL_STOP_TOPIC` でトピックを変更でき、`HYDRA_UMC_PRINTER3D_GLOBAL_STOP_STRICT=1` は最初の通知が届くまでも拒否します |
 | `HYDRA_MQTT_USERNAME` | なし | MQTT のユーザー名。ブローカーはクライアント ID のプレフィックスに結び付けます |
 | `HYDRA_MQTT_PASSWORD` | なし | パスワード。ユーザー名と一緒にのみ有効です |
