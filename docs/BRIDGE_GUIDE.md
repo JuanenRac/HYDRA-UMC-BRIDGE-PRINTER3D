@@ -18,6 +18,14 @@ The bridge separates four lanes: Moonraker readiness (`/printer/info` and `/prin
 
 FDM artifact evidence supports ordinary G-code from OrcaSlicer, Ultimaker Cura, PrusaSlicer, Bambu Studio and other slicers. `.gcode.3mf` and `.3mf` are identified only. Lychee-compatible resin outputs such as `.ctb` and `.goo` are opaque evidence, not decoded printer jobs. Moonraker/Klipper is the only printer API currently represented; job control is real, readiness is real, everything else stays read-only.
 
+## A job whose first attempt left no answer
+
+A job or start key is handled once. When a key was claimed but no answer was stored (the bridge stopped between the claim and the answer), the repeat of that key is refused with "this idempotency_key was already handled" and nothing is run again. With `HYDRA_UMC_PRINTER3D_IN_DOUBT_CONSULT=1` (default off) the bridge instead reads Moonraker and answers the repeat with `in_doubt: true`, `machine_state` and `printer_message`; the reading is stored under the key, so a further repeat gets the same answer. It is a reading, not a decision: the gate is not asked again, no print is started and `allowed` stays `false`. A printer that cannot be read leaves the repeat refused. Exercised against the Moonraker fixture of the suite only.
+
+## Matching answers to commands, and naming the file of a start
+
+With `HYDRA_UMC_PRINTER3D_COMMAND_CORRELATION=1` (default off) a command whose payload is a JSON object may carry a `request_id` (1 to 64 characters of letters, digits and `-_.:`): every answer to it on `cmd/<verb>/result` repeats it, so two clients on the same result topic can tell their answers apart. A `request_id` that is present but not valid refuses `cmd/job`, `cmd/start` and `cmd/resume`; a stop (`cmd/pause`, `cmd/cancel`, `cmd/emergency_stop`) is never refused for it. A `cmd/start` may also carry the `sha256` of the file and the `profile_id` it was prepared for. They are compared with what `file_facts(filename)` reports before the print starts; a value that is present but malformed is a refusal, and a value the printer cannot confirm refuses the start. Moonraker does not report a hash, so until a source of file facts is given to the bridge a start that names them is refused. Without the switch the fields are ignored, as before.
+
 ## Scripts and verification
 
 | Script | Purpose | Changes version/CHANGELOG? |

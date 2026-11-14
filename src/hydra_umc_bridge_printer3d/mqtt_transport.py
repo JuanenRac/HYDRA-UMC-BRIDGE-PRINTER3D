@@ -46,11 +46,13 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from dataclasses import asdict
 from typing import Any, Callable
 
-from hydra_umc_sdk.bridge_contract import BridgeError, CellState, JobPhase, decision_to_dict, job_from_dict
+from hydra_umc_sdk.bridge_contract import BridgeError, CellState, JobPhase, MachineState, decision_to_dict, job_from_dict
+from hydra_umc_sdk.command_correlation import answer_with_request_id, parse_start_metadata, read_request_id, start_matches
 from hydra_umc_sdk.job_intake import IdempotencyStore
 from hydra_umc_sdk.bridge_transport import BridgeHardening, hardening_from_environment
 from hydra_umc_sdk.bridge_transport import MessageDispatcher as SharedMessageDispatcher
@@ -64,6 +66,8 @@ from .moonraker import MoonrakerJobControl, MoonrakerProbe, PrinterBridge, Print
 
 TOPIC_PREFIX = "hydra/bridges/printer3d/"
 AVAILABILITY_TOPIC = f"{TOPIC_PREFIX}availability"
+IN_DOUBT_CONSULT_ENVIRONMENT = "HYDRA_UMC_PRINTER3D_IN_DOUBT_CONSULT"
+COMMAND_CORRELATION_ENVIRONMENT = "HYDRA_UMC_PRINTER3D_COMMAND_CORRELATION"
 
 # A command is a few hundred bytes; anything larger is not a command, and parsing it is how a hostile payload costs the bridge its memory or its stack.
 MAX_PAYLOAD_BYTES = 16 * 1024
@@ -74,6 +78,12 @@ STOP_VERBS = frozenset({"cmd/pause", "cmd/cancel", "cmd/emergency_stop"})
 # Refused while the server announces a global stop (when the bridge follows it): a resume and a start move the printer, a job asks for work (an abort is let through).
 MOVING_VERBS: frozenset[str] = frozenset({"cmd/resume", "cmd/start"})
 GLOBAL_STOP_ENVIRONMENT_NAME = "PRINTER3D"
+
+# With the command correlation on, a request_id that is present but not valid refuses these commands. A stop is never among them: a stop does not wait for a well-formed id.
+REQUEST_ID_CHECKED_VERBS: frozenset[str] = frozenset({"cmd/job", "cmd/start", "cmd/resume"})
+
+# What the printer can say about a file: its sha256 and the profile it was prepared for; either may be unknown (None).
+FileFacts = Callable[[str], "tuple[str | None, str | None]"]
 
 _LOG = logging.getLogger(__name__)
 
@@ -92,6 +102,24 @@ RESULT_QOS = 1  # an answer to a command is published at least once, like the ot
 def _result_payload(topic: str, result: object) -> MqttPublish:
     payload = asdict(result)  # type: ignore[call-overload]
     return MqttPublish(topic, json.dumps(payload), qos=RESULT_QOS)
+
+
+def _with_request_id(publishes: list[MqttPublish], request_id: str) -> list[MqttPublish]:
+    """Repeats `request_id` in every result the bridge publishes for a command; the state topics are left alone."""
+    out: list[MqttPublish] = []
+    for publish in publishes:
+        if publish.topic.endswith("/result"):
+            try:
+                body = json.loads(publish.payload)
+            except ValueError:
+                body = None
+            if isinstance(body, dict):
+                try:
+                    publish = MqttPublish(publish.topic, json.dumps(answer_with_request_id(body, request_id)), publish.retain, publish.qos)
+                except BridgeError:
+                    pass  # the answer already carries another id: it is left as it is
+        out.append(publish)
+    return out
 
 
 def _refusal(suffix: str, reason: str) -> list[MqttPublish]:
@@ -124,7 +152,14 @@ class PrinterMqttBridge:
         clock: Callable[[], float] = time.time,
         global_stop: GlobalStopGuard | GlobalStopSettings | None = None,
         publish_execution: bool = False,
+        in_doubt_consult: bool | None = None,
+        command_correlation: bool | None = None,
+        file_facts: FileFacts | None = None,
     ) -> None:
+        """`in_doubt_consult` makes a repeated job or start key whose first attempt left no answer be answered with what the printer reports now instead of a plain refusal
+        (default: `HYDRA_UMC_PRINTER3D_IN_DOUBT_CONSULT=1`, else off); nothing is ever run again for it.
+        `command_correlation` (default: `HYDRA_UMC_PRINTER3D_COMMAND_CORRELATION=1`, else off) repeats the `request_id` of a command in its answers and checks the `sha256` and `profile_id` a
+        `cmd/start` names against `file_facts(filename)`; a value the command names and the printer cannot confirm refuses the start. Without the switch both fields are ignored as before."""
         # docs/BRIDGE_CONTRACT.md: the idempotency key of a job is handled once; a repeat gets the answer that was given, so a repeated start never starts a second print
         self._idempotency = idempotency
         # follows the global stop that the server announces (global_stop.py); off unless HYDRA_UMC_PRINTER3D_GLOBAL_STOP=1 or a guard is given
@@ -136,6 +171,9 @@ class PrinterMqttBridge:
             self.global_stop = GlobalStopGuard.from_environment(GLOBAL_STOP_ENVIRONMENT_NAME)
         # execution.py: after every `state` message, the MTConnect execution value that goes with it (off unless asked for)
         self._publish_execution = publish_execution
+        self._in_doubt_consult = in_doubt_consult if in_doubt_consult is not None else os.environ.get(IN_DOUBT_CONSULT_ENVIRONMENT, "").strip() == "1"
+        self._correlation = command_correlation if command_correlation is not None else os.environ.get(COMMAND_CORRELATION_ENVIRONMENT, "").strip() == "1"
+        self._file_facts = file_facts
         self._base_url = base_url
         self._cell_state = cell_state
         self._clock = clock
@@ -196,8 +234,17 @@ class PrinterMqttBridge:
             out = _refusal(suffix, refused)
             self._count(suffix, out, started, key_of(payload))
             return out
+        request_id = None
+        if self._correlation:
+            request_id, invalid = self._request_id_of(suffix, payload)
+            if invalid is not None:
+                out = _refusal(suffix, invalid)
+                self._count(suffix, out, started, key_of(payload))
+                return out
         try:
             out = self._dispatch(suffix, payload)
+            if request_id is not None:
+                out = _with_request_id(out, request_id)
             self._count(suffix, out, started, key_of(payload))
             return with_execution(out) if self._publish_execution else out
         except Exception as error:  # noqa: BLE001 - nothing a message does may end the loop
@@ -206,6 +253,22 @@ class PrinterMqttBridge:
             if suffix.startswith("cmd/"):
                 self.stats.record(suffix, "error", (time.monotonic() - started) * 1000.0, key_of(payload))
             return out
+
+    @staticmethod
+    def _request_id_of(suffix: str, payload: bytes) -> tuple[str | None, str | None]:
+        """The request_id of a command and, when it is present but not valid and the verb is one that is checked, the reason to refuse it."""
+        if not payload or not payload.lstrip().startswith(b"{"):
+            return None, None
+        try:
+            body = json.loads(payload)
+        except (ValueError, UnicodeDecodeError):
+            return None, None
+        if not isinstance(body, dict):
+            return None, None
+        try:
+            return read_request_id(body), None
+        except BridgeError as error:
+            return None, (str(error) if suffix in REQUEST_ID_CHECKED_VERBS else None)
 
     def _count(self, suffix: str, out: list[MqttPublish], started: float, key: str | None) -> None:
         """Count a command that ended; `cmd/metrics` itself is not counted, and a topic that is not a command is not either."""
@@ -242,6 +305,7 @@ class PrinterMqttBridge:
                 raise ValueError("start payload must be a JSON object")
             job = job_from_dict(request["job"])
             filename = request["filename"]
+            metadata = parse_start_metadata(request) if self._correlation else None
         except (json.JSONDecodeError, BridgeError, KeyError, ValueError, UnicodeDecodeError) as error:
             result: Any = {"allowed": False, "executed": False, "reason": f"malformed start payload: {error}", "http_status": None}
             return MqttPublish(result_topic, json.dumps(result), qos=RESULT_QOS)
@@ -251,6 +315,12 @@ class PrinterMqttBridge:
         if repeat is not None:
             return repeat
         try:
+            if metadata is not None and metadata.present:
+                sha256, profile_id = self._file_facts(filename) if self._file_facts is not None else (None, None)
+                matches, why = start_matches(metadata, file_sha256=sha256, profile_id=profile_id)
+                if not matches:
+                    refused: Any = {"allowed": False, "executed": False, "reason": why, "http_status": None}
+                    return self._answer(key, MqttPublish(result_topic, json.dumps(refused), qos=RESULT_QOS))
             status = self.refresh_status()
             result = self._control.start_job(job, self._cell_state(), status, self._base_url, filename)
             return self._answer(key, _result_payload(result_topic, result))
@@ -290,7 +360,35 @@ class PrinterMqttBridge:
         if self._idempotency is None or self._idempotency.claim(key):
             return None
         stored = self._idempotency.recall(key)
+        if stored is None and self._in_doubt_consult:
+            stored = self._report_for_key_in_doubt(key, fallback)
         return MqttPublish(result_topic, stored if stored is not None else json.dumps(fallback), qos=RESULT_QOS)
+
+    def _report_for_key_in_doubt(self, key: str, fallback: dict) -> str | None:
+        """What Moonraker says now about a job or start whose first attempt left no answer; the answer is stored under the key, so a further repeat gets the same one.
+
+        It is a reading, not a decision: nothing is evaluated or started. A printer that cannot be read gives None and the repeat is refused.
+        """
+        try:
+            status = self.refresh_status()
+        except Exception:  # noqa: BLE001 - a failing query leaves the repeat refused, it does not stop the bridge
+            return None
+        if status.state is MachineState.OFFLINE:
+            return None
+        report = dict(fallback)
+        report.update(
+            {
+                "allowed": False,
+                "in_doubt": True,
+                "reason": f"the first attempt of this key left no answer; the printer now reports {status.state.value} and nothing is run again",
+                "machine_state": status.state.value,
+                "printer_message": status.message,
+            }
+        )
+        answer = json.dumps(report)
+        if self._idempotency is not None:
+            self._idempotency.remember(key, answer)
+        return answer
 
     def _answer(self, key: str, publish: MqttPublish) -> MqttPublish:
         if self._idempotency is not None:
