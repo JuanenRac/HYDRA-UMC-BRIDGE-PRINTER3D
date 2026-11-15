@@ -255,7 +255,8 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   ├── moonraker.py               打印机就绪状态与受关口约束的任务控制
 │   ├── artifacts.py               识别打印文件，从不解包
 │   ├── profiles.py                把证据与已声明的配置匹配
-│   └── mqtt_transport.py          MQTT 命令与状态传输
+│   ├── mqtt_transport.py          MQTT 命令与状态传输
+│   └── config_access.py           配置文件位置与访问检查
 ├── tests/                         132 项测试（针对本地 Moonraker 替身）
 ├── docs/                          桥接指南、配置边界、切片文件
 ├── tools/                         构建与测试运行器、版本提升、CI 校验、README 与图片的生成和检查
