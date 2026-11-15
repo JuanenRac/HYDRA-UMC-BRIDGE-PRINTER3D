@@ -236,7 +236,7 @@ class RunForeverTests(unittest.TestCase):
 
     def test_configures_broker_credentials_when_given(self):
         # HYDRA-UMC-MQTT-BROKER's own MQTT_AUTH_JSON authentication
-        # is real but this bridge previously had no way at all to supply
+        # is real, so this bridge has to be able to supply
         # a username/password to reach a broker that requires it.
         try:
             import paho.mqtt.client as mqtt

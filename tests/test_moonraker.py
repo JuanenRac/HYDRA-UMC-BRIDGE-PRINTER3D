@@ -60,9 +60,9 @@ class MoonrakerFixtureHandler(BaseHTTPRequestHandler):
         type(self).requested_paths.append(self.path)
         # regression: real Moonraker confirms these action endpoints
         # with a JSON object {"result": "ok"}, never a bare JSON string -
-        # this fixture used to send `b'"ok"'` (a bare string), which meant
+        # this fixture must not send `b'"ok"'` (a bare string), which would mean
         # the whole suite never actually exercised the real confirmation
-        # shape and would have hidden the exact gap closed.
+        # shape and would have hidden a missing confirmation check.
         #
         # `is not None`, never a plain `or` - an overridden EMPTY body
         # (b"") is itself a real, deliberate test case (this project's own "an
@@ -363,8 +363,8 @@ class MoonrakerJobControlTests(unittest.TestCase):
         self.assertIn("http(s)", result.reason)
 
     def test_an_http_200_with_an_unexpected_body_is_never_reported_as_executed_regression_for_H007(self):
-        # an HTTP 200 alone used to be trusted as unconditional
-        # success, response body entirely discarded. A misconfigured
+        # an HTTP 200 alone must not be trusted as unconditional
+        # success with the response body discarded. A misconfigured
         # proxy, captive portal, or unrelated service on the same host/
         # port could all answer 200 without ever having reached real
         # Moonraker at all.

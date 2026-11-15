@@ -187,13 +187,12 @@ class PrinterMqttBridge:
     def refresh_status(self) -> PrinterStatus:
         """Fetch real Moonraker readiness right now - never cached.
 
-        this used to be remembered in `_last_status` and reused by
-        `start`/`resume`/`cmd/job` for as long as this bridge stayed up,
-        with no expiry - a printer that started printing (or finished a
-        pause) seconds after the last `cmd/status` fetch would still gate
-        against the stale reading. Every command that needs readiness now
-        calls this immediately before deciding, exactly like CNC/LASER's
-        own per-command refresh."""
+        The reading is not remembered for `start`/`resume`/`cmd/job` to
+        reuse: kept with no expiry, a printer that started printing (or
+        finished a pause) seconds after the last `cmd/status` fetch would
+        still gate against the stale reading. Every command that needs
+        readiness calls this immediately before deciding, exactly like
+        CNC/LASER's own per-command refresh."""
 
         return self._probe.fetch(self._base_url)
 

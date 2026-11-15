@@ -157,14 +157,13 @@ class MoonrakerProbe:
         # `status` object inside a `result` envelope
         # (`{"result": {"status": {"print_stats": {...}}}}`,
         # moonraker.readthedocs.io/en/latest/external_api/introduction/) -
-        # this used to look for `status` directly on the OUTER payload
-        # (confusing the JSON-RPC-style envelope with the object it
-        # contains, unlike parse_info() just above, which already unwraps
-        # `result` correctly), so it silently fell through to treating the
-        # whole envelope as `status`, found no `print_stats` inside IT, and
-        # reported a perfectly healthy standby printer as OFFLINE with
-        # "missing print_stats". Unwrap `result` first, exactly like
-        # parse_info() already does, before reaching for `status`.
+        # looking for `status` directly on the OUTER payload would confuse
+        # the JSON-RPC-style envelope with the object it contains, silently
+        # treat the whole envelope as `status`, find no `print_stats`
+        # inside IT, and report a perfectly healthy standby printer as
+        # OFFLINE with "missing print_stats". So `result` is unwrapped
+        # first, exactly like parse_info() just above, before reaching for
+        # `status`.
         #
         # same real gap as parse_info above - a non-object JSON
         # root must fail closed here too, before payload.get(...) below
