@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The SDK pin and the shared tools are up to date:** the SDK dependency names the newest release tag, and the shared tools are the canonical copies again.
 - **The coverage job of CI checks out the same SDK release as the rest of the workflow (v0.6.4):** it still named the old release, so the tests that need the newer shared modules could not even be imported there.
 
 - **A job or start whose first attempt left no answer can be looked up instead of refused, off by default:** with `HYDRA_UMC_PRINTER3D_IN_DOUBT_CONSULT=1` (or `in_doubt_consult=True`) a repeated key that was claimed but never answered (for example after a restart in the middle of a start) is answered with what Moonraker reports now (`in_doubt`, `machine_state`, `printer_message`) instead of "already handled", so the sender can tell a print that began from one that did not. Nothing is evaluated or started again, the reading is stored so a further repeat gets the same answer, and a printer that cannot be read leaves the repeat refused. Without the switch the repeat is refused exactly as before. Tested against the Moonraker fixture of the suite (`tests/test_in_doubt_and_correlation.py`, simulation only).
