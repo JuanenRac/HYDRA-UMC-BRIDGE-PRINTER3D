@@ -4,6 +4,9 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+
+## [0.2.4]
+
 - **Comments describe what the code does, not what it used to do:** docstrings and notes in the source and the tests say the present behaviour and the reason for it. Comments only: no behaviour changes.
 - **The SDK pin and the shared tools are up to date:** the SDK dependency names the newest release tag, and the shared tools are the canonical copies again.
 - **The coverage job of CI checks out the same SDK release as the rest of the workflow (v0.6.4):** it still named the old release, so the tests that need the newer shared modules could not even be imported there.
@@ -25,6 +28,9 @@ All notable changes to this project are documented here.
 - **The answer to a command is published at least once (QoS 1):** every `cmd/<verb>/result` message, including the refusals, now goes out with QoS 1 like the other bridges (`RESULT_QOS`), so a caller on a flaky link still gets it; the retained `state` stays at QoS 0. `tests/test_result_qos.py` (5 tests).
 - **README: the platform statement:** a note says that where the README speaks of the CM5 it means the pilot bench that runs today, and that the target platform of HYDRA-UMC, an NVIDIA Jetson Orin NX 16 GB, is a design that has not been built or tested.
 - **The tests have a coverage floor of 94 %:** `tools/coverage_floor.json` holds the measured line and branch coverage of the bridge, rounded down (94.8 % measured in the CI environment), and `python tools/hydra_project_tool.py coverage` warns when it falls below it (a warning, not a CI check). Tooling only: no behaviour changes.
+
+- Successful incremental build: synchronized package metadata and `hydra-umc.project.json`.
+
 ## [0.2.3] - A visible simulation bench: the workflow "Simulation bench" runs the emulators and fakes of the bridge without hardware on every push, by hand and once a week; docs/SIMULATION.md says what it exercises and what it cannot show. (and 1 more changes)
 
 - **A visible simulation bench:** the workflow "Simulation bench" runs the emulators and fakes of the bridge without hardware on every push, by hand and once a week; `docs/SIMULATION.md` says what it exercises and what it cannot show.
