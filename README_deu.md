@@ -255,7 +255,8 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   ├── moonraker.py               Druckerbereitschaft und gesteuerte Auftragskontrolle
 │   ├── artifacts.py               erkennt Druckdateien, packt sie nie aus
 │   ├── profiles.py                ordnet Nachweise einem erklärten Profil zu
-│   └── mqtt_transport.py          MQTT-Transport für Befehle und Status
+│   ├── mqtt_transport.py          MQTT-Transport für Befehle und Status
+│   └── config_access.py           Ort der Konfigurationsdatei und Zugriffsprüfung
 ├── tests/                         132 Tests, gegen einen lokalen Moonraker-Ersatz
 ├── docs/                          Bridge-Leitfaden, Profilgrenze, Slicer-Dateien
 ├── tools/                         Build- und Testläufer, Versionserhöhung, CI-Prüfer, README- und Bildgeneratoren samt Prüfungen

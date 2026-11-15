@@ -255,7 +255,8 @@ HYDRA-UMC-BRIDGE-PRINTER3D/
 │   ├── moonraker.py               estado da impressora e controlo de trabalhos com porta
 │   ├── artifacts.py               identifica ficheiros de impressão, nunca os descompacta
 │   ├── profiles.py                associa a evidência a um perfil declarado
-│   └── mqtt_transport.py          transporte MQTT de comandos e estado
+│   ├── mqtt_transport.py          transporte MQTT de comandos e estado
+│   └── config_access.py           localização do ficheiro de configuração e verificação de acesso
 ├── tests/                         132 testes, contra um substituto local do Moonraker
 ├── docs/                          guia do bridge, limite de perfis, ficheiros do fatiador
 ├── tools/                         executor de compilação e testes, subida de versão, validador de CI, geradores e verificações de README e imagens
