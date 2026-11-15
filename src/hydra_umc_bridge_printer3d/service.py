@@ -3,7 +3,7 @@
 # Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
 # GPL-3.0-or-later - see LICENSE
 # =============================================================================
-"""Run the bridge as a service: ``python -m hydra_umc_bridge_printer3d --config /etc/hydra-umc/bridge-printer3d.toml``.
+"""Run the bridge as a service: ``python -m hydra_umc_bridge_printer3d --config /etc/hydra-umc-bridge-printer3d/bridge-printer3d.toml``.
 
 Everything that depends on the machine lives in the configuration file and nothing in the code: where Moonraker is, the MQTT
 broker, where the state of the cell comes from, the global stop, the limits of the transport and the heartbeat. The file is TOML;
@@ -38,9 +38,10 @@ from hydra_umc_sdk.global_stop import DEFAULT_TOPIC, GlobalStopSettings
 
 from .heartbeat import MAX_INTERVAL_S, MIN_INTERVAL_S
 from .moonraker_ws import MoonrakerSubscriber, PrintCompleteSettings, WebSocketSettings, websocket_url
+from .config_access import DEFAULT_CONFIG_PATH, LEGACY_CONFIG_PATH, SERVICE_GROUP, check_access, group_exists, migrate_legacy_config, diagnose_access
+
 
 CONFIG_ENVIRONMENT = "HYDRA_UMC_BRIDGE_PRINTER3D_CONFIG"
-DEFAULT_CONFIG_PATH = "/etc/hydra-umc/bridge-printer3d.toml"
 
 _LOG = logging.getLogger(__name__)
 
@@ -219,6 +220,9 @@ def parse_config(data: dict) -> ServiceConfig:
 def load_config(path: str | os.PathLike[str]) -> ServiceConfig:
     try:
         data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
+    except PermissionError as error:
+        hint = diagnose_access(str(path))
+        raise ConfigError(f"cannot read {path}: {error.strerror or error}" + (f" ({hint})" if hint else "")) from error
     except OSError as error:
         raise ConfigError(f"cannot read {path}: {error.strerror or error}") from error
     except tomllib.TOMLDecodeError as error:
@@ -292,7 +296,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="hydra_umc_bridge_printer3d", description="HYDRA-UMC 3D-printer bridge service")
     parser.add_argument("--config", default=os.environ.get(CONFIG_ENVIRONMENT, DEFAULT_CONFIG_PATH), help=f"configuration file (default: ${CONFIG_ENVIRONMENT} or {DEFAULT_CONFIG_PATH})")
     parser.add_argument("--check", action="store_true", help="read and validate the configuration, then exit")
+    parser.add_argument("--prepare-config", action="store_true", help="run as root before the service: copy the configuration file of the earlier place to --config once, never overwriting and never deleting the old file; exit 0 whether it copied, kept or found nothing")
+    parser.add_argument("--check-access", action="store_true", help="check that the account that runs this command can read --config, then exit (0 when readable, 2 with the reason when not); an installer runs it as the service account")
+    parser.add_argument("--legacy-config", default=LEGACY_CONFIG_PATH, help=f"the earlier place of the configuration file, used by --prepare-config (default: {LEGACY_CONFIG_PATH})")
     args = parser.parse_args(argv)
+    if args.check_access:
+        code, message = check_access(args.config)
+        print(message, file=sys.stderr if code else sys.stdout)
+        return code
+    if args.prepare_config:
+        try:
+            outcome = migrate_legacy_config(args.legacy_config, args.config, SERVICE_GROUP if group_exists(SERVICE_GROUP) else "")
+        except OSError as error:
+            print(f"hydra-umc-bridge-printer3d: prepare-config: {type(error).__name__}: {error}", file=sys.stderr)
+            return 2
+        print(f"hydra-umc-bridge-printer3d: prepare-config: {outcome} ({args.config})")
+        return 0
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     try:
         config = load_config(args.config)
