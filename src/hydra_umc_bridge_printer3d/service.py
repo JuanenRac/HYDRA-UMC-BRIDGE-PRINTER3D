@@ -38,7 +38,7 @@ from hydra_umc_sdk.global_stop import DEFAULT_TOPIC, GlobalStopSettings
 
 from .heartbeat import MAX_INTERVAL_S, MIN_INTERVAL_S
 from .moonraker_ws import MoonrakerSubscriber, PrintCompleteSettings, WebSocketSettings, websocket_url
-from .config_access import DEFAULT_CONFIG_PATH, LEGACY_CONFIG_PATH, SERVICE_GROUP, check_access, group_exists, migrate_legacy_config, diagnose_access
+from .config_access import DEFAULT_CONFIG_PATH, LEGACY_CONFIG_PATH, SERVICE_GROUP, check_access, ensure_directory, group_exists, migrate_legacy_config, diagnose_access
 
 
 CONFIG_ENVIRONMENT = "HYDRA_UMC_BRIDGE_PRINTER3D_CONFIG"
@@ -305,8 +305,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(message, file=sys.stderr if code else sys.stdout)
         return code
     if args.prepare_config:
+        group = SERVICE_GROUP if group_exists(SERVICE_GROUP) else ""
         try:
-            outcome = migrate_legacy_config(args.legacy_config, args.config, SERVICE_GROUP if group_exists(SERVICE_GROUP) else "")
+            if Path(args.config).parent.name == SERVICE_GROUP:  # the directory of the service, never a directory the operator named
+                ensure_directory(str(Path(args.config).parent), group)
+            outcome = migrate_legacy_config(args.legacy_config, args.config, group)
         except OSError as error:
             print(f"hydra-umc-bridge-printer3d: prepare-config: {type(error).__name__}: {error}", file=sys.stderr)
             return 2
