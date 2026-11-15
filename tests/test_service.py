@@ -164,7 +164,8 @@ class WiringTests(unittest.TestCase):
 
     def test_the_unit_runs_only_with_a_valid_configuration(self):
         text = UNIT.read_text(encoding="utf-8")
-        self.assertIn("ConditionPathExists=/etc/hydra-umc/bridge-printer3d.toml", text)
+        self.assertIn("ConditionPathExists=|/etc/hydra-umc-bridge-printer3d/bridge-printer3d.toml", text)
+        self.assertIn("ConditionPathExists=|/etc/hydra-umc/bridge-printer3d.toml", text)
         self.assertIn("ExecStartPre=/usr/bin/python3 -m hydra_umc_bridge_printer3d --check", text)
         self.assertIn("NoNewPrivileges=true", text)
 
