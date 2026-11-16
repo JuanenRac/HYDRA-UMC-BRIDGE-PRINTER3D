@@ -96,7 +96,7 @@ class MoonrakerProbe:
 
     @staticmethod
     def parse_combined(payload: dict[str, object]) -> PrinterStatus | None:
-        """The answer of `/printer/objects/query?webhooks&print_stats=state`: the firmware state (`webhooks`, the same words as `/printer/info`) and, only when the firmware is ready, the print state.
+        """The answer of `/printer/objects/query?webhooks&print_stats=state&idle_timeout=state`: the firmware state (`webhooks`, the same words as `/printer/info`) and, only when the firmware is ready, the print state.
 
         Fails closed like the two parsers it is made of: anything that is not the expected shape is OFFLINE, a firmware that is not ready is what `parse_info` says, a print that is running,
         paused or in error wins over ready, and None means the print head is free and the firmware is ready (the caller then reports IDLE)."""
@@ -187,6 +187,11 @@ class MoonrakerProbe:
         if state == "error":
             return PrinterStatus(MachineState.FAULT, "the last print job exited with an error")
         if state in {"standby", "complete", "cancelled"}:
+            # a homing, a macro or a manual move leaves print_stats untouched but Klipper's idle_timeout says "Printing"
+            # while the toolhead is busy; when the firmware reports it, a busy toolhead is not a free one
+            idle_timeout = status.get("idle_timeout")
+            if isinstance(idle_timeout, dict) and str(idle_timeout.get("state", "")).lower() == "printing":
+                return PrinterStatus(MachineState.RUNNING, "the toolhead is busy (idle_timeout is Printing)")
             return None
         return PrinterStatus(MachineState.OFFLINE, f"unknown print_stats state {state or 'missing'}")
 
@@ -205,7 +210,7 @@ class MoonrakerProbe:
 
         if self._single_request:
             # one request for both readings; the parser answers the final state itself, so a reading that cannot be trusted is OFFLINE as before
-            combined = self._get(f"{normalized_base_url}/printer/objects/query?webhooks&print_stats=state", timeout_seconds, self.parse_combined, self._api_key)
+            combined = self._get(f"{normalized_base_url}/printer/objects/query?webhooks&print_stats=state&idle_timeout=state", timeout_seconds, self.parse_combined, self._api_key)
             return combined  # type: ignore[return-value]
 
         info_status = self._get(f"{normalized_base_url}/printer/info", timeout_seconds, self.parse_info, self._api_key)
@@ -219,7 +224,7 @@ class MoonrakerProbe:
         # see parse_print_stats()'s own comment. Query the real, separate
         # print_stats object before trusting IDLE.
         print_status = self._get(
-            f"{normalized_base_url}/printer/objects/query?print_stats=state",
+            f"{normalized_base_url}/printer/objects/query?print_stats=state&idle_timeout=state",
             timeout_seconds,
             self.parse_print_stats,
             self._api_key,

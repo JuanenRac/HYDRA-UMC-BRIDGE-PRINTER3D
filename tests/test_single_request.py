@@ -22,6 +22,7 @@ class Handler(BaseHTTPRequestHandler):
     paths: list[str] = []
     webhooks = {"state": "ready", "state_message": "Printer is ready"}
     print_stats: object = {"state": "standby"}
+    idle_timeout: object = {"state": "Ready"}
     raw: bytes | None = None
     code = 200
 
@@ -35,6 +36,8 @@ class Handler(BaseHTTPRequestHandler):
                 status["webhooks"] = type(self).webhooks
             if "print_stats" in self.path:
                 status["print_stats"] = type(self).print_stats
+            if "idle_timeout" in self.path:
+                status["idle_timeout"] = type(self).idle_timeout
             body = json.dumps({"result": {"status": status}}).encode()
         else:
             body = json.dumps({"result": type(self).webhooks}).encode()
@@ -65,6 +68,7 @@ class SingleRequestTests(unittest.TestCase):
         Handler.paths = []
         Handler.webhooks = {"state": "ready", "state_message": "Printer is ready"}
         Handler.print_stats = {"state": "standby"}
+        Handler.idle_timeout = {"state": "Ready"}
         Handler.raw = None
         Handler.code = 200
 
@@ -105,9 +109,27 @@ class SingleRequestTests(unittest.TestCase):
             self.assertEqual(one.state, two, (webhooks, stats))
             self.assertEqual(one.state, expected, (webhooks, stats))
 
+    def test_a_busy_toolhead_is_running_on_both_routes(self):
+        for idle_state, expected in (("Printing", MachineState.RUNNING), ("printing", MachineState.RUNNING), ("Idle", MachineState.IDLE), ("Ready", MachineState.IDLE)):
+            Handler.idle_timeout = {"state": idle_state}
+            for single in (False, True):
+                self.assertEqual(MoonrakerProbe(single_request=single).fetch(self.url).state, expected, (idle_state, single))
+
+    def test_a_busy_toolhead_does_not_hide_a_paused_or_failed_print(self):
+        Handler.idle_timeout = {"state": "Printing"}
+        for stats, expected in (({"state": "paused"}, MachineState.HOLDING), ({"state": "error"}, MachineState.FAULT)):
+            Handler.print_stats = stats
+            for single in (False, True):
+                self.assertEqual(MoonrakerProbe(single_request=single).fetch(self.url).state, expected)
+
+    def test_the_parser_ignores_an_idle_timeout_of_the_wrong_shape(self):
+        for bad in (None, [], "Printing", 5):
+            payload = {"result": {"status": {"print_stats": {"state": "standby"}, "idle_timeout": bad}}}
+            self.assertIsNone(MoonrakerProbe.parse_print_stats(payload))
+
     def test_the_one_request_asks_for_both_objects(self):
         MoonrakerProbe(single_request=True).fetch(self.url)
-        self.assertEqual(Handler.paths, ["/printer/objects/query?webhooks&print_stats=state"])
+        self.assertEqual(Handler.paths, ["/printer/objects/query?webhooks&print_stats=state&idle_timeout=state"])
 
     def test_a_missing_part_fails_closed(self):
         for payload in ({"result": {"status": {"print_stats": {"state": "standby"}}}}, {"result": {"status": {"webhooks": {"state": "ready"}}}}, {"result": {"status": []}}, {"result": 5}, [1, 2]):

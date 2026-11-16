@@ -135,7 +135,7 @@ class MoonrakerTests(unittest.TestCase):
         port = self.server.server_port
         status = MoonrakerProbe().fetch(f"http://127.0.0.1:{port}")
         self.assertEqual(status.state, MachineState.IDLE)
-        self.assertIn("/printer/objects/query?print_stats=state", MoonrakerFixtureHandler.requested_paths)
+        self.assertIn("/printer/objects/query?print_stats=state&idle_timeout=state", MoonrakerFixtureHandler.requested_paths)
 
     def test_printing_print_stats_overrides_a_bare_klippy_ready_reading(self):
         # Klipper itself stays klippy_state=ready throughout an entire
@@ -178,7 +178,7 @@ class MoonrakerTests(unittest.TestCase):
         MoonrakerFixtureHandler.info_response_override = json.dumps({"state": "shutdown"}).encode("utf-8")
         status = MoonrakerProbe().fetch(f"http://127.0.0.1:{self.server.server_port}")
         self.assertEqual(status.state, MachineState.FAULT)
-        self.assertNotIn("/printer/objects/query?print_stats=state", MoonrakerFixtureHandler.requested_paths)
+        self.assertNotIn("/printer/objects/query?print_stats=state&idle_timeout=state", MoonrakerFixtureHandler.requested_paths)
 
     def test_unparseable_print_stats_response_fails_closed(self):
         MoonrakerFixtureHandler.print_stats_response_override = json.dumps({"result": {"status": {}}}).encode("utf-8")

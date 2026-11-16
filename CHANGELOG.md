@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A busy print head is no longer reported as free:** a homing, a macro or a manual move leaves the print state at standby, so the printer read as idle while the head was moving. The readiness queries (the two-request route, the one-request route and the websocket subscription) now also ask Klipper for `idle_timeout`, and a state of `Printing` makes the printer RUNNING, so a job phase that enters the printer is refused. A paused or failed print still wins; a firmware that does not report `idle_timeout` is read as before. Tests cover all three routes.
 - **The README tells what writes the cell state file the bridge reads:** the `[cell_state] file` source is produced by HYDRA-UMC-SAFETY-ZONES when its zones file switches `cellState.enabled` on (off by default); without it a bridge on `file` reads `SAFE_STOP`. **The README states the URTC bootloader check correctly and points to its own honesty check:** the shared safety notice no longer says that the URTC bootloaders behind the relay take a shared-key HMAC-SHA256 (the main board verifies an Ed25519 record and an expansion board installs only an image the main board confirmed), and the status lines no longer send the reader to a check "above" that is further down. README and its seven translations regenerated.
 
 ## [0.2.5]

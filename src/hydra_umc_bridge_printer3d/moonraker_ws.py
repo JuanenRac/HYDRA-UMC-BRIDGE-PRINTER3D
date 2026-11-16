@@ -6,7 +6,7 @@
 """Follow the printer through Moonraker's websocket instead of asking it every few seconds. Read-only, off by default.
 
 Moonraker pushes a JSON-RPC notification whenever a subscribed printer object changes, and says at once when Klipper shuts down.
-With the websocket switched on in the configuration file the bridge subscribes to ``webhooks``, ``print_stats``, ``extruder``,
+With the websocket switched on in the configuration file the bridge subscribes to ``webhooks``, ``print_stats``, ``idle_timeout``, ``extruder``,
 ``heater_bed``, ``display_status`` and ``virtual_sdcard`` and publishes:
 
 * ``hydra/bridges/printer3d/state`` (retained, the same payload as ``cmd/status``) every time the state of the printer changes, and
@@ -51,6 +51,7 @@ TELEMETRY_TOPIC = f"{TOPIC_PREFIX}telemetry"
 SUBSCRIBED_OBJECTS: dict[str, None] = {
     "webhooks": None,
     "print_stats": None,
+    "idle_timeout": None,
     "extruder": None,
     "heater_bed": None,
     "display_status": None,
@@ -193,7 +194,7 @@ class PrinterObjectTracker:
         info = MoonrakerProbe.parse_info({"result": {"state": webhooks.get("state", ""), "state_message": webhooks.get("state_message", "")}})
         if info.state is not MachineState.IDLE:
             return info
-        print_status = MoonrakerProbe.parse_print_stats({"result": {"status": {"print_stats": self._objects.get("print_stats", {})}}})
+        print_status = MoonrakerProbe.parse_print_stats({"result": {"status": {"print_stats": self._objects.get("print_stats", {}), "idle_timeout": self._objects.get("idle_timeout", {})}}})
         return info if print_status is None else print_status
 
     # --- messages ----------------------------------------------------------

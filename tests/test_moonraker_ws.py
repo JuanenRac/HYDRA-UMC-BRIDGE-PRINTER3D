@@ -68,6 +68,15 @@ class TrackerTests(unittest.TestCase):
         self.assertEqual(reading["filename"], "part.gcode")
         self.assertFalse(next(m for m in out if m.topic == ws.TELEMETRY_TOPIC).retain)
 
+    def test_a_busy_toolhead_is_running_even_with_no_print(self):
+        self.tracker.handle(snapshot())
+        self.clock.now += 2
+        out = self.tracker.handle(update(idle_timeout={"state": "Printing"}))
+        self.assertEqual(states(out)[0]["state"], "RUNNING")
+        self.clock.now += 2
+        out = self.tracker.handle(update(idle_timeout={"state": "Idle"}))
+        self.assertEqual(states(out)[0]["state"], "IDLE")
+
     def test_the_state_follows_the_print_without_polling(self):
         self.tracker.handle(snapshot())
         self.clock.now += 2
