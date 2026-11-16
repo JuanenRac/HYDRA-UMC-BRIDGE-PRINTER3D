@@ -27,7 +27,7 @@ GPL-3.0-or-later - see LICENSE
 
 > **诚实检查——今天真正可运行的部分：** Moonraker 就绪探测与安全门控（`moonraker.py` 中的 `MoonrakerProbe`/`PrinterBridge`，每个任务都会经过 `HYDRA-UMC-SDK` 自身真正的 `evaluate_job()`）、真正的由 SDK 门控的任务命令（`MoonrakerJobControl` 的启动/暂停/恢复/取消）、只读的产物/配置文件证据（`artifacts.py`、`profiles.py`），以及 MQTT 命令/状态桥接（`mqtt_transport.py`）都是真实的，并由 272 个通过的 `unittest` 用例覆盖（`python tools/build_test.py`）。面向 Moonraker 的测试是针对一个真实的本地 `ThreadingHTTPServer` 运行的，用来替代真正的 Moonraker REST API——而不是真实的打印机——而 MQTT 层自身的 `connect_with_retry()`/消息路由逻辑在测试中从未真正打开过 `paho-mqtt` 连接或 broker。正如下文 README 已经说明的那样，该桥接尚未针对真实的打印机、热端或机器人进行过验证。原始 G-code 流式传输被有意地没有实现——只能按名称启动/暂停/恢复/取消一个已上传、已切片好的文件。详见下文的"当前状态与后续步骤"（已经如实说明了这一点），以及 `CHANGELOG.md` 中目前具体已交付的内容。
 
-> **安全与安防现状:**本生态系统不是经认证的安全系统。目前尚无硬件 E-STOP 通路,没有由固件强制执行的限位或联锁,也没有经过验证的运动指令;固件映像使用 CRC-32 和 Ed25519 签名校验,发布构建会拒绝已公开的开发密钥(中继之后的工具头和扩展板仍运行 URTC 的引导程序,它们使用共享密钥的 HMAC-SHA256 而不是签名);TLS 与双向 TLS 均为可选项,默认关闭;自制电路板尚未组装或测试。在依赖此处任何说法来保障人身安全之前,请先阅读[安全基线](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/SECURITY_BASELINE.md)和[威胁模型](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/THREAT_MODEL.md)。
+> **安全与安防现状:**本生态系统不是经认证的安全系统。目前尚无硬件 E-STOP 通路,没有由固件强制执行的限位或联锁,也没有经过验证的运动指令;固件映像使用 CRC-32 和 Ed25519 签名校验,发布构建会拒绝已公开的开发密钥(中继之后的 URTC 引导程序不再使用共享密钥:主板用公钥表校验 Ed25519 记录,扩展板只有在主板确认了该确切映像之后才会安装它);TLS 与双向 TLS 均为可选项,默认关闭;自制电路板尚未组装或测试。在依赖此处任何说法来保障人身安全之前,请先阅读[安全基线](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/SECURITY_BASELINE.md)和[威胁模型](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/THREAT_MODEL.md)。
 
 ---
 
@@ -52,7 +52,7 @@ GPL-3.0-or-later - see LICENSE
 
 | 领域 | 状态 | 在这里的含义 |
 |---|---|---|
-| 软件 | 🟡 | 主要用途可用；上面的诚实性检查列出了仍然缺少的内容 |
+| 软件 | 🟡 | 主要用途可用；本 README 中的诚实性检查列出了仍然缺少的内容 |
 | 测试 | 🟢 | 272 项自动测试，每次变更都会运行 |
 | 真实硬件 | 🟠 | 仅模拟：使用模拟器、替身或仿真测试；此版本没有在真实硬件上运行的记录 |
 | 接口与协议 | 🟡 | 提供的路由或消息已有文档，并用客户端测试过；尚未被所有客户端使用 |
@@ -169,6 +169,8 @@ flowchart LR
 | `HYDRA_MQTT_TLS_CA` | 无 | 签署代理证书的 CA 文件：连接使用 TLS 并验证证书 |
 | `HYDRA_MQTT_TLS` | 关闭 | `1` 启用 TLS，并用系统信任的 CA 验证 |
 | `HYDRA_MQTT_TLS_CERT` / `HYDRA_MQTT_TLS_KEY` | 无 | 用于要求双向 TLS 的代理的客户端证书及其密钥；两者都需要 |
+
+**单元状态从哪里来。** `[cell_state] source = "file"` 读取文件（例如 `/run/hydra-umc/cell_state`）的第一个词，文件缺失、未知或过旧时按 `SAFE_STOP` 处理；`source = "fixed"` 始终使用一个固定值（默认 `INHIBITED`）。该文件由 HYDRA-UMC-SAFETY-ZONES 在其区域文件开启 `cellState.enabled` 时写入（默认关闭，见其 `docs/CELL_STATE.md`）：只有它最近一次裁决为 `READY` 且足够新时才写 `READY`，正常停止时写 `SAFE_STOP`，该服务终止后文件会变旧。该服务没有运行就没有写入者，因此使用 `file` 的 bridge 读到 `SAFE_STOP`；把 `fixed` 设为 `READY` 是操作员的决定，会使安全区域不再参与放行。尚未在真实单元上用真实 bridge 试验。
 
 ## 🚀 快速开始
 
