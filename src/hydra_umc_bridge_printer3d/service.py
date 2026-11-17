@@ -62,6 +62,7 @@ class MqttSettings:
 @dataclass(frozen=True)
 class MoonrakerSettings:
     url: str | None = None
+    follow_redirects: bool = True
 
 
 @dataclass(frozen=True)
@@ -129,8 +130,8 @@ def parse_config(data: dict) -> ServiceConfig:
         raise ConfigError("mqtt.port must be 1 to 65535")
 
     moon_table = _table(data, "moonraker")
-    _only(moon_table, {"url"}, "moonraker")
-    moonraker = MoonrakerSettings(_kind(moon_table, "url", str, "moonraker"))
+    _only(moon_table, {"url", "follow_redirects"}, "moonraker")
+    moonraker = MoonrakerSettings(_kind(moon_table, "url", str, "moonraker"), _kind(moon_table, "follow_redirects", bool, "moonraker", True))
     if not moonraker.url:
         raise ConfigError("moonraker.url is required")
     if not moonraker.url.startswith(("http://", "https://")):
@@ -277,6 +278,7 @@ def build_bridge(config: ServiceConfig, *, clock: Callable[[], float] = time.tim
         clock=clock,
         global_stop=config.global_stop,
         publish_execution=config.publish_execution,
+        follow_redirects=config.moonraker.follow_redirects,
     )
 
 

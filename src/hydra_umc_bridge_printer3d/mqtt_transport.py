@@ -155,11 +155,13 @@ class PrinterMqttBridge:
         in_doubt_consult: bool | None = None,
         command_correlation: bool | None = None,
         file_facts: FileFacts | None = None,
+        follow_redirects: bool = True,
     ) -> None:
         """`in_doubt_consult` makes a repeated job or start key whose first attempt left no answer be answered with what the printer reports now instead of a plain refusal
         (default: `HYDRA_UMC_PRINTER3D_IN_DOUBT_CONSULT=1`, else off); nothing is ever run again for it.
         `command_correlation` (default: `HYDRA_UMC_PRINTER3D_COMMAND_CORRELATION=1`, else off) repeats the `request_id` of a command in its answers and checks the `sha256` and `profile_id` a
-        `cmd/start` names against `file_facts(filename)`; a value the command names and the printer cannot confirm refuses the start. Without the switch both fields are ignored as before."""
+        `cmd/start` names against `file_facts(filename)`; a value the command names and the printer cannot confirm refuses the start. Without the switch both fields are ignored as before.
+        `follow_redirects` (default true, as it always was) off makes a redirect from Moonraker a refusal with its reason instead of a request that was sent on to another address."""
         # docs/BRIDGE_CONTRACT.md: the idempotency key of a job is handled once; a repeat gets the answer that was given, so a repeated start never starts a second print
         self._idempotency = idempotency
         # follows the global stop that the server announces (global_stop.py); off unless HYDRA_UMC_PRINTER3D_GLOBAL_STOP=1 or a guard is given
@@ -180,8 +182,8 @@ class PrinterMqttBridge:
         # command_log.py: one log line per command and counters, read with cmd/metrics
         self.stats = CommandStats(clock)
         key = api_key if api_key is not None else api_key_from_env()
-        self._probe = MoonrakerProbe(key)
-        self._control = MoonrakerJobControl(key)
+        self._probe = MoonrakerProbe(key, follow_redirects=follow_redirects)
+        self._control = MoonrakerJobControl(key, follow_redirects=follow_redirects)
         self._gate = PrinterBridge()
 
     def refresh_status(self) -> PrinterStatus:

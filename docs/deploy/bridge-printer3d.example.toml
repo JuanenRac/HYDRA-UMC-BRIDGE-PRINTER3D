@@ -14,6 +14,8 @@ client_id = "hydra-umc-bridge-printer3d"
 # Where Moonraker answers (required: the service does not start without it).
 [moonraker]
 url = "http://127.0.0.1:7125"
+# true (the default) follows a redirect of Moonraker, as before; false refuses it with its reason, so a start is never sent on to another address
+# follow_redirects = true
 
 # Where the state of the cell (READY, INHIBITED, FAULT, SAFE_STOP) comes from.
 #   fixed: always "value" (the default is INHIBITED: nothing gets work)

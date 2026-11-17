@@ -14,7 +14,7 @@ from pathlib import PurePosixPath
 from typing import Callable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 from hydra_umc_sdk.bridge_contract import BridgeJob, CellState, GateDecision, JobPhase, MachineState, evaluate_job
 
@@ -82,11 +82,33 @@ class PrinterStatus:
     message: str
 
 
+class _RefuseRedirects(HTTPRedirectHandler):
+    """A 3xx answer is an error (the HTTPError of the answer itself), never a new request: a redirected POST would turn into a GET."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]  # noqa: ANN001
+        return None
+
+
+_STRICT_OPENER = build_opener(_RefuseRedirects())
+
+
+def _open(request: Request, timeout_seconds: float, follow_redirects: bool = True):  # type: ignore[no-untyped-def]
+    """`urlopen` as it always was, or, with `follow_redirects` off, an opener that stops at the first redirect."""
+    if follow_redirects:
+        return urlopen(request, timeout=timeout_seconds)  # nosec B310
+    return _STRICT_OPENER.open(request, timeout=timeout_seconds)  # nosec B310
+
+
+def _redirect_text(code: int) -> str:
+    return f"Moonraker answered with a redirect (HTTP {code}): give the final address in the configuration, or set moonraker.follow_redirects to true"
+
+
 class MoonrakerProbe:
     """Small stdlib probe for Moonraker's documented `/printer/info` endpoint."""
 
-    def __init__(self, api_key: str | None = None, single_request: bool | None = None) -> None:
+    def __init__(self, api_key: str | None = None, single_request: bool | None = None, follow_redirects: bool = True) -> None:
         self._api_key = api_key
+        self._follow_redirects = follow_redirects
         # None follows HYDRA_UMC_PRINTER3D_SINGLE_REQUEST (off unless it is "1")
         self._single_request = os.environ.get(SINGLE_REQUEST_ENV, "").strip() == "1" if single_request is None else bool(single_request)
 
@@ -210,10 +232,10 @@ class MoonrakerProbe:
 
         if self._single_request:
             # one request for both readings; the parser answers the final state itself, so a reading that cannot be trusted is OFFLINE as before
-            combined = self._get(f"{normalized_base_url}/printer/objects/query?webhooks&print_stats=state&idle_timeout=state", timeout_seconds, self.parse_combined, self._api_key)
+            combined = self._get(f"{normalized_base_url}/printer/objects/query?webhooks&print_stats=state&idle_timeout=state", timeout_seconds, self.parse_combined, self._api_key, self._follow_redirects)
             return combined  # type: ignore[return-value]
 
-        info_status = self._get(f"{normalized_base_url}/printer/info", timeout_seconds, self.parse_info, self._api_key)
+        info_status = self._get(f"{normalized_base_url}/printer/info", timeout_seconds, self.parse_info, self._api_key, self._follow_redirects)
         if info_status.state != MachineState.IDLE:  # type: ignore[union-attr]
             # klippy is not ready (startup/shutdown/error) or unreachable -
             # that already fails closed, so there is no point asking a
@@ -228,6 +250,7 @@ class MoonrakerProbe:
             timeout_seconds,
             self.parse_print_stats,
             self._api_key,
+            self._follow_redirects,
         )
         if print_status is None:
             # standby/complete/cancelled - the print head is genuinely
@@ -247,13 +270,14 @@ class MoonrakerProbe:
         timeout_seconds: float,
         parser: Callable[[dict[str, object]], "PrinterStatus | None"],
         api_key: str | None = None,
+        follow_redirects: bool = True,
     ) -> "PrinterStatus | None":
         # Shared transport for both /printer/info and /printer/objects/query -
         # the same real failure modes (unreachable, malformed, oversized)
         # apply to either endpoint, so both fail the same safe way.
         request = Request(endpoint, headers={API_KEY_HEADER: api_key} if api_key else {})  # nosec B310: configured controller endpoint, restricted to HTTP(S) above
         try:
-            with urlopen(request, timeout=timeout_seconds) as response:  # nosec B310
+            with _open(request, timeout_seconds, follow_redirects) as response:
                 payload = response.read(_MAX_INFO_BYTES + 1)
             if len(payload) > _MAX_INFO_BYTES:
                 return PrinterStatus(MachineState.OFFLINE, "Moonraker response exceeds the 64 KiB readiness limit")
@@ -261,6 +285,8 @@ class MoonrakerProbe:
             return parser(parsed_payload)
         except HTTPError as error:
             error.close()
+            if 300 <= error.code < 400:
+                return PrinterStatus(MachineState.OFFLINE, _redirect_text(error.code))
             if error.code in (401, 403):
                 return PrinterStatus(MachineState.OFFLINE, f"Moonraker refused the credentials (HTTP {error.code}): set {API_KEY_ENV}")
             return PrinterStatus(MachineState.OFFLINE, f"Moonraker unreachable: {error}")
@@ -310,8 +336,9 @@ class MoonrakerJobControl:
     manifest has always said.
     """
 
-    def __init__(self, api_key: str | None = None) -> None:
+    def __init__(self, api_key: str | None = None, follow_redirects: bool = True) -> None:
         self._api_key = api_key
+        self._follow_redirects = follow_redirects
 
     def start_job(
         self,
@@ -349,13 +376,13 @@ class MoonrakerJobControl:
         unknown = self._file_problem(base_url, filename, timeout_seconds)
         if unknown is not None:
             return JobCommandResult(True, False, unknown)
-        return self._post(base_url, "/printer/print/start", timeout_seconds, {"filename": filename}, self._api_key)
+        return self._post(base_url, "/printer/print/start", timeout_seconds, {"filename": filename}, self._api_key, self._follow_redirects)
 
     def pause_job(self, base_url: str, timeout_seconds: float = 5.0) -> JobCommandResult:
         # Always allowed, same de-escalation reasoning as ABORT/HOLD_POSITION
         # elsewhere in this ecosystem - an operator must always be able to
         # pause an active job; pausing only ever reduces risk.
-        return self._post(base_url, "/printer/print/pause", timeout_seconds, None, self._api_key)
+        return self._post(base_url, "/printer/print/pause", timeout_seconds, None, self._api_key, self._follow_redirects)
 
     def resume_job(
         self,
@@ -377,18 +404,18 @@ class MoonrakerJobControl:
             return JobCommandResult(
                 False, False, f"printer is {printer.state.value}, not HOLDING (nothing to resume)"
             )
-        return self._post(base_url, "/printer/print/resume", timeout_seconds, None, self._api_key)
+        return self._post(base_url, "/printer/print/resume", timeout_seconds, None, self._api_key, self._follow_redirects)
 
     def cancel_job(self, base_url: str, timeout_seconds: float = 5.0) -> JobCommandResult:
         # Always allowed, same reasoning as ABORT everywhere else in this
         # ecosystem - a controlled stop must never be gated on machine state.
-        return self._post(base_url, "/printer/print/cancel", timeout_seconds, None, self._api_key)
+        return self._post(base_url, "/printer/print/cancel", timeout_seconds, None, self._api_key, self._follow_redirects)
 
     def emergency_stop(self, base_url: str, timeout_seconds: float = 5.0) -> JobCommandResult:
         # The hard stop (Klipper M112): heaters and motors off at once. Never gated and
         # never deduplicated - a stop must always get through. Klipper needs a
         # FIRMWARE_RESTART afterwards, which is a human decision this bridge never takes.
-        return self._post(base_url, "/printer/emergency_stop", timeout_seconds, None, self._api_key)
+        return self._post(base_url, "/printer/emergency_stop", timeout_seconds, None, self._api_key, self._follow_redirects)
 
     def _file_problem(self, base_url: str, filename: str, timeout_seconds: float) -> str | None:
         """None when Moonraker knows `filename`; otherwise why the start must not go ahead."""
@@ -398,10 +425,12 @@ class MoonrakerJobControl:
         endpoint = f"{normalized_base_url}/server/files/metadata?{urlencode({'filename': filename})}"
         request = Request(endpoint, headers={API_KEY_HEADER: self._api_key} if self._api_key else {})  # nosec B310: configured controller endpoint, restricted to HTTP(S) above
         try:
-            with urlopen(request, timeout=timeout_seconds) as response:  # nosec B310
+            with _open(request, timeout_seconds, self._follow_redirects) as response:
                 response.read(_MAX_INFO_BYTES + 1)
         except HTTPError as error:
             error.close()
+            if 300 <= error.code < 400:
+                return _redirect_text(error.code)
             if error.code == 404:
                 return f"Moonraker has no file {filename!r} to print"
             if error.code in (401, 403):
@@ -418,6 +447,7 @@ class MoonrakerJobControl:
         timeout_seconds: float,
         params: dict[str, str] | None,
         api_key: str | None = None,
+        follow_redirects: bool = True,
     ) -> JobCommandResult:
         normalized_base_url, problem = _normalize_base_url(base_url)
         if normalized_base_url is None:
@@ -429,11 +459,13 @@ class MoonrakerJobControl:
         headers = {API_KEY_HEADER: api_key} if api_key else {}
         request = Request(endpoint, method="POST", data=b"", headers=headers)  # nosec B310: configured controller endpoint, restricted to HTTP(S) above
         try:
-            with urlopen(request, timeout=timeout_seconds) as response:  # nosec B310
+            with _open(request, timeout_seconds, follow_redirects) as response:
                 body = response.read(_MAX_INFO_BYTES + 1)
                 status_code = response.status
         except HTTPError as error:
             error.close()
+            if 300 <= error.code < 400:
+                return JobCommandResult(True, False, _redirect_text(error.code), error.code)
             if error.code in (401, 403):
                 return JobCommandResult(True, False, f"Moonraker refused the credentials (HTTP {error.code}): set {API_KEY_ENV}", error.code)
             return JobCommandResult(True, False, f"Moonraker rejected the command: HTTP {error.code}", error.code)
