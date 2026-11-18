@@ -58,6 +58,19 @@
           }
         },
         {
+          "name": "file_facts.py",
+          "desc": {
+            "en": "downloads a G-code file to get its sha256 and its profile comment",
+            "es": "descarga un fichero de G-code para obtener su sha256 y su comentario de perfil",
+            "de": "lädt eine G-Code-Datei, um ihren sha256 und den Profilkommentar zu erhalten",
+            "fr": "télécharge un fichier G-code pour obtenir son sha256 et son commentaire de profil",
+            "it": "scarica un file G-code per ottenerne lo sha256 e il commento di profilo",
+            "ja": "G-code ファイルをダウンロードして sha256 とプロファイルのコメントを得る",
+            "zh": "下载 G-code 文件以获得其 sha256 和配置注释",
+            "pt": "descarrega um ficheiro G-code para obter o seu sha256 e o comentário de perfil"
+          }
+        },
+        {
           "name": "mqtt_transport.py",
           "desc": {
             "en": "MQTT command and status transport",
@@ -104,14 +117,14 @@
         {
           "name": "tests/",
           "desc": {
-            "en": "132 tests, against a local Moonraker stand-in",
-            "es": "132 pruebas, contra un sustituto local de Moonraker",
-            "de": "132 Tests, gegen einen lokalen Moonraker-Ersatz",
-            "fr": "132 tests, contre un substitut local de Moonraker",
-            "it": "132 test, contro un sostituto locale di Moonraker",
-            "ja": "132 件（ローカルの Moonraker 代替相手）",
-            "zh": "132 项测试（针对本地 Moonraker 替身）",
-            "pt": "132 testes, contra um substituto local do Moonraker"
+            "en": "319 tests, against a local Moonraker stand-in",
+            "es": "319 pruebas, contra un sustituto local de Moonraker",
+            "de": "319 Tests, gegen einen lokalen Moonraker-Ersatz",
+            "fr": "319 tests, contre un substitut local de Moonraker",
+            "it": "319 test, contro un sostituto locale di Moonraker",
+            "ja": "319 件（ローカルの Moonraker 代替相手）",
+            "zh": "319 项测试（针对本地 Moonraker 替身）",
+            "pt": "319 testes, contra um substituto local do Moonraker"
           }
         },
         {
