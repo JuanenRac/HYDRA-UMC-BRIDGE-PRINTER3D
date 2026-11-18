@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The status table of the README shows the exact test count as confirmed:** the table is regenerated from the recorded data, so the Tests line is green for a count that was collected and that a workflow runs. The README and its seven translations are regenerated.
+
 - **The README names the file facts of a start:** the configuration table lists `[file_facts] max_bytes` (the largest file the bridge downloads from Moonraker to compute a sha256, and the `; hydra_profile: <id>` header comment that gives the profile), the test table lists `test_file_facts.py`, the file tree names `file_facts.py`, and the test counts are current. The README and its seven translations are regenerated.
 
 - **A start that names a sha256 or a profile can now be checked:** with the command correlation on, the bridge downloads the G-code file from Moonraker (up to `file_facts.max_bytes`, 256 MiB by default, 0 turns it off) to compute its sha256, remembers the result by file name and modification time, and reads the profile from a header comment `; hydra_profile: <id>`. A file without that comment has no profile, so a start that names one is refused.
