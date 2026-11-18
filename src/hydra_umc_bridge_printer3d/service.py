@@ -37,6 +37,7 @@ from hydra_umc_sdk.bridge_transport import BridgeHardening
 from hydra_umc_sdk.global_stop import DEFAULT_TOPIC, GlobalStopSettings
 
 from .heartbeat import MAX_INTERVAL_S, MIN_INTERVAL_S
+from .file_facts import DEFAULT_MAX_BYTES as DEFAULT_FILE_FACTS_MAX_BYTES
 from .moonraker_ws import MoonrakerSubscriber, PrintCompleteSettings, WebSocketSettings, websocket_url
 from .config_access import DEFAULT_CONFIG_PATH, LEGACY_CONFIG_PATH, SERVICE_GROUP, check_access, ensure_directory, group_exists, migrate_legacy_config, diagnose_access
 
@@ -85,6 +86,7 @@ class ServiceConfig:
     websocket: WebSocketSettings = field(default_factory=WebSocketSettings)  # the [websocket] table; off by default
     print_complete: PrintCompleteSettings = field(default_factory=PrintCompleteSettings)  # the [print_complete] table; off by default
     publish_execution: bool = False  # the [execution] table: the MTConnect execution value after every state
+    file_facts_max_bytes: int = DEFAULT_FILE_FACTS_MAX_BYTES  # the [file_facts] table: largest G-code file read to tell its sha256 (0 is off)
 
 
 def _table(parent: dict, key: str) -> dict:
@@ -115,7 +117,7 @@ def _kind(table: dict, key: str, kind: type, where: str, default: object = None)
 def parse_config(data: dict) -> ServiceConfig:
     """Turn the parsed TOML into the configuration, refusing what is unknown or wrong."""
 
-    _only(data, {"mqtt", "moonraker", "cell_state", "idempotency", "global_stop", "hardening", "heartbeat", "websocket", "print_complete", "execution"}, "the file")
+    _only(data, {"mqtt", "moonraker", "cell_state", "idempotency", "global_stop", "hardening", "heartbeat", "websocket", "print_complete", "execution", "file_facts"}, "the file")
     mqtt_table = _table(data, "mqtt")
     _only(mqtt_table, {"host", "port", "client_id", "max_connect_attempts", "connect_retry_delay_seconds"}, "mqtt")
     d = MqttSettings()
@@ -200,6 +202,11 @@ def parse_config(data: dict) -> ServiceConfig:
         websocket.validate()
     except ValueError as error:
         raise ConfigError(f"websocket: {error}") from error
+    facts_table = _table(data, "file_facts")
+    _only(facts_table, {"max_bytes"}, "file_facts")
+    facts_max = _kind(facts_table, "max_bytes", int, "file_facts", DEFAULT_FILE_FACTS_MAX_BYTES)
+    if facts_max < 0:
+        raise ConfigError("file_facts.max_bytes must not be negative")
     exec_table = _table(data, "execution")
     _only(exec_table, {"enabled"}, "execution")
     execution = _kind(exec_table, "enabled", bool, "execution", False)
@@ -215,7 +222,7 @@ def parse_config(data: dict) -> ServiceConfig:
         raise ConfigError(f"print_complete: {error}") from error
     if print_complete.enabled and not websocket.enabled:
         raise ConfigError("print_complete needs [websocket] enabled: the event is made from the stream of the bed temperature")
-    return ServiceConfig(mqtt, moonraker, cell, _kind(idem, "path", str, "idempotency"), global_stop, hardening, heartbeat, websocket, print_complete, execution)
+    return ServiceConfig(mqtt, moonraker, cell, _kind(idem, "path", str, "idempotency"), global_stop, hardening, heartbeat, websocket, print_complete, execution, facts_max)
 
 
 def load_config(path: str | os.PathLike[str]) -> ServiceConfig:
@@ -268,6 +275,8 @@ def build_bridge(config: ServiceConfig, *, clock: Callable[[], float] = time.tim
 
     from hydra_umc_sdk.job_intake import IdempotencyStore
 
+    from .file_facts import MoonrakerFileFacts
+    from .moonraker import api_key_from_env
     from .mqtt_transport import PrinterMqttBridge
 
     idempotency = IdempotencyStore(config.idempotency_path) if config.idempotency_path else IdempotencyStore()
@@ -279,6 +288,7 @@ def build_bridge(config: ServiceConfig, *, clock: Callable[[], float] = time.tim
         global_stop=config.global_stop,
         publish_execution=config.publish_execution,
         follow_redirects=config.moonraker.follow_redirects,
+        file_facts=MoonrakerFileFacts(config.moonraker.url or "", api_key_from_env(), max_bytes=config.file_facts_max_bytes, follow_redirects=config.moonraker.follow_redirects),
     )
 
 

@@ -17,6 +17,12 @@ url = "http://127.0.0.1:7125"
 # true (the default) follows a redirect of Moonraker, as before; false refuses it with its reason, so a start is never sent on to another address
 # follow_redirects = true
 
+# With HYDRA_UMC_PRINTER3D_COMMAND_CORRELATION=1 a start may name the sha256 and the profile of its file. Moonraker reports neither, so the bridge downloads the file
+# (kept by name and modification time) to compute the sha256 and reads the profile from a header comment "; hydra_profile: <id>"; a file without it has no profile.
+# max_bytes is the largest file it will read (0 turns this off: a start that names a sha256 or a profile is then refused).
+[file_facts]
+# max_bytes = 268435456
+
 # Where the state of the cell (READY, INHIBITED, FAULT, SAFE_STOP) comes from.
 #   fixed: always "value" (the default is INHIBITED: nothing gets work)
 #   file:  the first word of "path"; a missing, unknown or older-than-max_age_seconds file is SAFE_STOP
