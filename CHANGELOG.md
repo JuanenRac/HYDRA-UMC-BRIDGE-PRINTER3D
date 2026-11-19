@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.2.6]
+
 - **The status table of the README shows the exact test count as confirmed:** the table is regenerated from the recorded data, so the Tests line is green for a count that was collected and that a workflow runs. The README and its seven translations are regenerated.
 
 - **The README names the file facts of a start:** the configuration table lists `[file_facts] max_bytes` (the largest file the bridge downloads from Moonraker to compute a sha256, and the `; hydra_profile: <id>` header comment that gives the profile), the test table lists `test_file_facts.py`, the file tree names `file_facts.py`, and the test counts are current. The README and its seven translations are regenerated.
@@ -12,6 +14,8 @@ All notable changes to this project are documented here.
 - **Moonraker redirects can be refused:** `moonraker.follow_redirects` (true by default, which is how it always worked) set to false makes a redirect answer of Moonraker a refusal with its reason, for the readiness reading, the file check and every job command, instead of sending the request on to another address (a redirected POST becomes a GET).
 - **A busy print head is no longer reported as free:** a homing, a macro or a manual move leaves the print state at standby, so the printer read as idle while the head was moving. The readiness queries (the two-request route, the one-request route and the websocket subscription) now also ask Klipper for `idle_timeout`, and a state of `Printing` makes the printer RUNNING, so a job phase that enters the printer is refused. A paused or failed print still wins; a firmware that does not report `idle_timeout` is read as before. Tests cover all three routes.
 - **The README tells what writes the cell state file the bridge reads:** the `[cell_state] file` source is produced by HYDRA-UMC-SAFETY-ZONES when its zones file switches `cellState.enabled` on (off by default); without it a bridge on `file` reads `SAFE_STOP`. **The README states the URTC bootloader check correctly and points to its own honesty check:** the shared safety notice no longer says that the URTC bootloaders behind the relay take a shared-key HMAC-SHA256 (the main board verifies an Ed25519 record and an expansion board installs only an image the main board confirmed), and the status lines no longer send the reader to a check "above" that is further down. README and its seven translations regenerated.
+
+- Successful incremental build: synchronized package metadata and `hydra-umc.project.json`.
 
 ## [0.2.5]
 
