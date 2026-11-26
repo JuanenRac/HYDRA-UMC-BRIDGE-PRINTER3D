@@ -42,6 +42,8 @@ path = "/var/lib/hydra-umc-bridge-printer3d/idempotency.sqlite"
 enabled = false
 topic = "hydra/swarm/safety/estop"
 strict = false
+# ready_key_file: the key the server signs the announcement with; when set, only a signed READY ends a stop
+# ready_key_file = "/etc/hydra-umc/global-stop.key"
 
 # The limits of the MQTT transport. All off by default. A table that is present but wrong stops the service at start, naming the key.
 # Without this table the environment of the service can switch it on (HYDRA_UMC_PRINTER3D_HARDENED=1).

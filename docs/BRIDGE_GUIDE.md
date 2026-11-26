@@ -48,6 +48,7 @@ The server can announce a global stop on `<mqtt prefix>/safety/estop` (a retaine
 | `HYDRA_UMC_PRINTER3D_GLOBAL_STOP` | off | `1` makes the bridge subscribe to the announcement (QoS 1, again after every reconnect) |
 | `HYDRA_UMC_PRINTER3D_GLOBAL_STOP_TOPIC` | `hydra/swarm/safety/estop` | the topic, when the MQTT prefix of the server is not the default one |
 | `HYDRA_UMC_PRINTER3D_GLOBAL_STOP_STRICT` | off | `1` also refuses before the first announcement has been heard |
+| `HYDRA_UMC_PRINTER3D_GLOBAL_STOP_KEY_FILE` | not set | the file of the key the server signs the announcement with (at least 32 characters, mode 600): every `SAFE_STOP` is obeyed as before, and only a signed `READY` newer than the last signed announcement ends a stop; the bridge does not start if the file cannot be used |
 
 Every command leaves one JSON line in the log `hydra_umc_bridge_printer3d.commands` (verb, outcome, duration and the idempotency key of the job, cut to 64 characters; never the payload) and is counted per verb and outcome; `cmd/metrics` answers the counters on `hydra/bridges/printer3d/metrics` (not retained, read-only). See `command_log.py`.
 
